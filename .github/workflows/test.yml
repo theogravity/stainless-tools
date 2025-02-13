@@ -21,6 +21,9 @@ jobs:
           node-version: 20
           cache: 'pnpm'
 
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+
       - name: Build package
         run: pnpm run build
 
