@@ -1,0 +1,60 @@
+{
+  "name": "example-typescript-package",
+  "description": "",
+  "version": "0.2.2",
+  "main": "dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "types": "dist/index.d.ts",
+  "author": "Theo Gravity <theo@suteki.nu>",
+  "keywords": [],
+  "scripts": {
+    "build": "tsup src/index.ts",
+    "changeset": "changeset",
+    "clean": "rm -rf node_modules dist",
+    "debug": "ts-node-dev --inspect -- src/index.ts",
+    "debug:break": "ts-node-dev --inspect-brk -- src/index.ts",
+    "lint": "biome check --write --unsafe src && biome format src --write && biome lint src --fix",
+    "release": "changeset publish",
+    "syncpack:update": "syncpack update && syncpack fix-mismatches && pnpm i",
+    "syncpack:format": "syncpack format",
+    "syncpack:lint": "syncpack lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "version-packages": "changeset version"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "@changesets/changelog-github": "0.5.0",
+    "@changesets/cli": "2.27.12",
+    "@commitlint/cli": "19.7.1",
+    "@commitlint/config-conventional": "19.7.1",
+    "@types/node": "22.13.1",
+    "lefthook": "1.10.10",
+    "tsup": "8.3.6",
+    "syncpack": "13.0.2",
+    "turbo": "2.4.2",
+    "typescript": "5.7.3",
+    "vitest": "3.0.5"
+  },
+  "bugs": "https://github.com/theogravity/example-typescript-package/issues",
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "dist"
+  ],
+  "homepage": "https://github.com/theogravity/example-typescript-package",
+  "license": "MIT",
+  "packageManager": "pnpm@9.11.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": "git@github.com:theogravity/example-typescript-package.git"
+}
