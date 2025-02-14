@@ -1,5 +1,11 @@
 # stainless-tools changelog
 
+## 3.0.0
+
+### Major Changes
+
+- [#15](https://github.com/theogravity/stainless-tools/pull/15) [`b3d323b`](https://github.com/theogravity/stainless-tools/commit/b3d323b778973cee087783e1bb120495c261e601) Thanks [@theogravity](https://github.com/theogravity)! - Add prod repository support. See MIGRATE.md for more details.
+
 ## 2.0.1
 
 ### Patch Changes
