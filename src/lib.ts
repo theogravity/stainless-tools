@@ -33,6 +33,8 @@ interface GenerateAndWatchSDKOptions {
     /** Whether to attempt automatic configuration detection */
     guessConfig?: boolean;
   };
+  /** The environment (staging/prod) being used */
+  env?: string;
 }
 
 /**

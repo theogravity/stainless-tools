@@ -84,11 +84,10 @@ describe("StainlessTools", () => {
 
     // Setup mock filesystem
     mock({
-      "/test/sdk-repo": {},
-      "/test/config-repo": {},
+      "/test": {},
       "/test/target-dir": {},
       "/test/openapi.json": '{"openapi": "3.0.0"}',
-      "/test/stainless-tools.json": '{"name": "test-api"}',
+      "/test/stainless-tools.json": '{"name": "test-api"}'
     });
   });
 
@@ -581,6 +580,79 @@ describe("StainlessTools", () => {
 
       const mockWatcher = mockWatch.mock.results[0].value;
       expect(mockWatcher.close).toHaveBeenCalled();
+    });
+  });
+
+  describe("getTargetDir", () => {
+    it("replaces {sdk} with SDK name", () => {
+      const tools = new StainlessTools({
+        sdkRepo: "git@github.com:org/repo.git",
+        branch: "main",
+        targetDir: "./sdks/{sdk}",
+        sdkName: "typescript",
+      });
+
+      // @ts-expect-error accessing private method for testing
+      expect(tools.getTargetDir()).toBe("./sdks/typescript");
+    });
+
+    it("replaces {env} with environment", () => {
+      const tools = new StainlessTools({
+        sdkRepo: "git@github.com:org/repo.git",
+        branch: "main",
+        targetDir: "./sdks/{env}/{sdk}",
+        sdkName: "typescript",
+        env: "staging",
+      });
+
+      // @ts-expect-error accessing private method for testing
+      expect(tools.getTargetDir()).toBe("./sdks/staging/typescript");
+    });
+
+    it("replaces {branch} with branch name, converting slashes to hyphens", () => {
+      const tools = new StainlessTools({
+        sdkRepo: "git@github.com:org/repo.git",
+        branch: "feature/auth",
+        targetDir: "./sdks/{branch}",
+      });
+
+      // @ts-expect-error accessing private method for testing
+      expect(tools.getTargetDir()).toBe("./sdks/feature-auth");
+    });
+
+    it("handles complex branch names with multiple slashes", () => {
+      const tools = new StainlessTools({
+        sdkRepo: "git@github.com:org/repo.git",
+        branch: "users/theo/feature/auth",
+        targetDir: "./sdks/{branch}",
+      });
+
+      // @ts-expect-error accessing private method for testing
+      expect(tools.getTargetDir()).toBe("./sdks/users-theo-feature-auth");
+    });
+
+    it("handles all template variables together", () => {
+      const tools = new StainlessTools({
+        sdkRepo: "git@github.com:org/repo.git",
+        branch: "users/theo/dev",
+        targetDir: "./sdks/{env}/{sdk}/{branch}",
+        sdkName: "typescript",
+        env: "staging",
+      });
+
+      // @ts-expect-error accessing private method for testing
+      expect(tools.getTargetDir()).toBe("./sdks/staging/typescript/users-theo-dev");
+    });
+
+    it("leaves targetDir unchanged when no template variables used", () => {
+      const tools = new StainlessTools({
+        sdkRepo: "git@github.com:org/repo.git",
+        branch: "main",
+        targetDir: "./sdks/typescript",
+      });
+
+      // @ts-expect-error accessing private method for testing
+      expect(tools.getTargetDir()).toBe("./sdks/typescript");
     });
   });
 }); 
