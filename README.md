@@ -19,9 +19,13 @@ A TypeScript library and CLI tool for managing [Stainless](https://www.stainless
 
 ## About this project
 
-This project was entirely built using [Cursor](https://www.cursor.com/). It took an entire day with careful prompting to cover various use-cases and write the appropriate tests and documentation. No human wrote any part of the `src` code, although the README has been hand-polished.
+This `src` files were entirely built using [Cursor](https://www.cursor.com/). It took an entire day with careful prompting to cover various use-cases and write the appropriate tests and documentation. No human wrote any part of the `src` code, although the README has been hand-polished.
+
+It has only been tested on MacOS under Node 22 (although built for 18). Other platforms may not be supported.
 
 ## Installation
+
+You must have at least Node 18 installed to use this tool.
 
 ```bash
 npm install stainless-tools -g
@@ -48,8 +52,6 @@ STAINLESS_API_KEY=your_api_key_here
 export STAINLESS_API_KEY=your_api_key_here
 ```
 
-The API key is required when using `--open-api-file` or `--stainless-config-file` options, as these features interact with the Stainless API.
-
 ### Configuration
 
 The tool uses [cosmiconfig](https://github.com/davidtheclark/cosmiconfig) for configuration management. You can define your configuration in any of these ways:
@@ -63,11 +65,11 @@ The tool uses [cosmiconfig](https://github.com/davidtheclark/cosmiconfig) for co
 
 ```typescript
 interface StainlessConfig {
-   // Map of SDK names to their repository URLs
-   // If using the main branch, then you will want to use the production SDK repo
-   // If using non-main, eg <username>/dev, then you will want to use the staging SDK repo
-   // e.g. git@github.com:stainless-sdks/<project>-typescript.git
-   // The key is used as the <sdk-name> in the CLI
+  // Map of SDK names to their repository URLs
+  // If using the main branch, then you will want to use the production SDK repo
+  // If using non-main, eg <username>/dev, then you will want to use the staging SDK repo
+  // e.g. git@github.com:stainless-sdks/<project>-typescript.git
+  // The key is used as the <sdk-name> in the CLI
   stainlessSdkRepos: {
     [key: string]: string;
   };
@@ -78,13 +80,13 @@ interface StainlessConfig {
     // If using the staging SDK repo, then you will want to use the <username>/dev branch
     // See: https://app.stainlessapi.com/docs/guides/branches
     branch?: string;
-    
+
     // Default target directory for generated SDKs (can use {sdk} placeholder; required if not using cli flag) 
     targetDir?: string;
-    
+
     // OpenAPI specification file path (required if not using cli flag)
     openApiFile: string;
-    
+
     // Optional: Stainless config file
     stainlessConfigFile?: string;
 
@@ -166,28 +168,28 @@ stainless-tools generate \
 
 When you run `generate`:
 1. It checks if the SDK repository exists in your target directory:
-   - If the directory doesn't exist, it clones the repository fresh against the specified `branch`
-   - If the directory exists and contains the correct repository, it updates it
-   - If the directory exists but contains a different repository, it fails with an error asking you to remove it manually
+    - If the directory doesn't exist, it clones the repository fresh against the specified `branch`
+    - If the directory exists and contains the correct repository, it updates it
+    - If the directory exists but contains a different repository, it fails with an error asking you to remove it manually
 
 2. If you provide an OpenAPI file (`--open-api-file`) or Stainless config file (`--stainless-config-file`):
-   - It publishes these files to the Stainless Config repo via the Stainless API
-   - The API processes the files and generates the SDK in the *staging* branch of the SDK repo
+    - It publishes these files to the Stainless Config repo via the Stainless API
+    - The API processes the files and generates the SDK in the *staging* branch of the SDK repo
 
 3. Continuously monitors for changes:
-   - Pulls new SDK generation changes when detected
-   - If you have local changes in your SDK clone:
-     - Your changes are automatically stashed before pulling
-     - After pulling, your changes are reapplied
-     - If there are conflicts during reapply:
-       - Your changes are preserved in the stash
-       - You'll get instructions for resolving conflicts manually
-   - When the OpenAPI or Stainless config files are updated:
-     - Changes are automatically published to the Stainless Config repo
-     - The API regenerates the SDK
-     - New changes are pulled into your local clone (with stashing if needed)
+    - Pulls new SDK generation changes when detected
+    - If you have local changes in your SDK clone:
+        - Your changes are automatically stashed before pulling
+        - After pulling, your changes are reapplied
+        - If there are conflicts during reapply:
+            - Your changes are preserved in the stash
+            - You'll get instructions for resolving conflicts manually
+    - When the OpenAPI or Stainless config files are updated:
+        - Changes are automatically published to the Stainless Config repo
+        - The API regenerates the SDK
+        - New changes are pulled into your local clone (with stashing if needed)
 
 4. Handles interruptions gracefully:
-   - Ctrl+C stops the monitoring process
-   - Any stashed changes are restored before exit
-   - Cleanup is performed to ensure no watchers are left running
+    - Ctrl+C stops the monitoring process
+    - Any stashed changes are restored before exit
+    - Cleanup is performed to ensure no watchers are left running
