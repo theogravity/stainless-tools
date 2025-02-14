@@ -26,7 +26,8 @@
     "swagger",
     "sdk",
     "openapi",
-    "cli"
+    "cli",
+    "codegen"
   ],
   "scripts": {
     "build": "tsup",

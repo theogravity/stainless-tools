@@ -4,7 +4,7 @@
 ![NPM Downloads](https://img.shields.io/npm/dm/stainless-tools)
 [![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-%230074c1.svg)](http://www.typescriptlang.org/)
 
-A TypeScript library and CLI tool for managing [Stainless](https://www.stainless.com/) SDK repositories. This tool helps you generate, monitor, and sync SDK repositories with their corresponding OpenAPI specifications.
+A TypeScript library and CLI tool for managing [Stainless](https://www.stainless.com/) config and generated SDKs. This tool helps you generate, monitor, and sync SDK repositories as you update your OpenAPI / Stainless config files.
 
 ## Features
 
@@ -40,17 +40,21 @@ Ensure you have:
 
 #### Environment Setup
 
-Before using the tool, you need to set up your Stainless API key. You can do this in two ways:
+Before using the tool, you need to set up your environment variables. You can do this in two ways:
 
 1. Create a `.env` file in your project root:
 ```bash
 STAINLESS_API_KEY=your_api_key_here
+STAINLESS_SDK_BRANCH=your_branch_name # Optional: Override the branch name
 ```
 
-2. Or export it in your shell:
+2. Or export them in your shell:
 ```bash
 export STAINLESS_API_KEY=your_api_key_here
+export STAINLESS_SDK_BRANCH=your_branch_name # Optional: the git branch name to check out for the SDK repo
 ```
+
+The `STAINLESS_SDK_BRANCH` environment variable is optional and can be used to override the branch name specified in the configuration file or command line options.
 
 ### Configuration
 
@@ -75,7 +79,7 @@ interface StainlessConfig {
   };
 
   defaults?: {
-    // Default branch name for all SDKs (required if not using cli flag)
+    // Default branch name for all SDKs (required if not using cli flag or the STAINLESS_SDK_BRANCH environment variable)
     // If using the production SDK repo, then you will want to use the main branch
     // If using the staging SDK repo, then you will want to use the <username>/dev branch
     // See: https://app.stainlessapi.com/docs/guides/branches
@@ -87,13 +91,13 @@ interface StainlessConfig {
     // OpenAPI specification file path (required if not using cli flag)
     openApiFile: string;
 
-    // Optional: Stainless config file
+    // Optional: Stainless config file path
     stainlessConfigFile?: string;
 
     // Stainless project name (required if not using cli flag)
     projectName?: string;
 
-    // Whether to use the "Guess with AI" command from the Stainless Studio for the Stainless Config
+    // Whether to use the "Guess with AI" command from the Stainless Studio for the Stainless Config. Default is false.
     guessConfig?: boolean;
   };
 }
