@@ -279,35 +279,15 @@ export class StainlessTools {
    * @private
    */
   private isSameRepository(url1: string, url2: string): boolean {
-    // Normalize URLs to remove .git suffix and convert to lowercase
-    const normalize = (url: string) => {
-      url = url.toLowerCase().replace(/\.git$/, "");
-
-      // Convert SSH protocol URL to HTTPS format
-      if (url.startsWith("ssh://")) {
-        try {
-          const sshUrl = new URL(url);
-          // Extract the path, removing any port number
-          const path = sshUrl.pathname.slice(1); // Remove leading slash
-          // Extract the hostname without port and remove git@ if present
-          const hostname = sshUrl.hostname.replace(/^git@/, "");
-          return `https://${hostname}/${path}`;
-        } catch {
-          return url;
-        }
-      }
-
-      // Convert traditional SSH to HTTPS format
-      if (url.startsWith("git@")) {
-        url = url.replace(/^git@([^:]+):(.+)$/, "https://$1/$2");
-      }
-
-      return url;
+    // Extract org/repo-name from Git URLs, ignoring protocol, domain, and .git suffix
+    const getRepoPath = (url: string): string => {
+      const match = url.match(/(?:^|\/|:)([\w-]+\/[\w-]+)(?:\.git)?$/);
+      return match?.[1] || "";
     };
 
-    const normalized1 = normalize(url1);
-    const normalized2 = normalize(url2);
-    return normalized1 === normalized2;
+    const repo1 = getRepoPath(url1);
+    const repo2 = getRepoPath(url2);
+    return repo1 !== "" && repo2 !== "" && repo1 === repo2;
   }
 
   /**
