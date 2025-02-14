@@ -1,7 +1,7 @@
 {
   "name": "stainless-tools",
   "description": "Tools for use with the Stainless SDK service",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "main": "dist/index.js",
   "bin": {
     "stainless-tools": "./dist/cli.js"
