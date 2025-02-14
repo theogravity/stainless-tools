@@ -48,8 +48,6 @@ STAINLESS_API_KEY=your_api_key_here
 export STAINLESS_API_KEY=your_api_key_here
 ```
 
-The API key is required when using `--open-api-file` or `--stainless-config-file` options, as these features interact with the Stainless API.
-
 ### Configuration
 
 The tool uses [cosmiconfig](https://github.com/davidtheclark/cosmiconfig) for configuration management. You can define your configuration in any of these ways:
