@@ -283,7 +283,21 @@ export class StainlessTools {
     const normalize = (url: string) => {
       url = url.toLowerCase().replace(/\.git$/, "");
 
-      // Convert SSH to HTTPS format
+      // Convert SSH protocol URL to HTTPS format
+      if (url.startsWith("ssh://")) {
+        try {
+          const sshUrl = new URL(url);
+          // Extract the path, removing any port number
+          const path = sshUrl.pathname.slice(1); // Remove leading slash
+          // Extract the hostname without port and remove git@ if present
+          const hostname = sshUrl.hostname.replace(/^git@/, "");
+          return `https://${hostname}/${path}`;
+        } catch {
+          return url;
+        }
+      }
+
+      // Convert traditional SSH to HTTPS format
       if (url.startsWith("git@")) {
         url = url.replace(/^git@([^:]+):(.+)$/, "https://$1/$2");
       }
@@ -291,7 +305,9 @@ export class StainlessTools {
       return url;
     };
 
-    return normalize(url1) === normalize(url2);
+    const normalized1 = normalize(url1);
+    const normalized2 = normalize(url2);
+    return normalized1 === normalized2;
   }
 
   /**

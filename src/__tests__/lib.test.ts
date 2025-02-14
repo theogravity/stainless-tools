@@ -32,7 +32,7 @@ const mockGit = {
   status: vi.fn().mockResolvedValue({ isClean: () => true }),
   stash: vi.fn().mockResolvedValue(undefined),
   revparse: vi.fn().mockResolvedValue(undefined),
-  getRemotes: vi.fn().mockResolvedValue([{ name: "origin", refs: { fetch: "https://github.com/org/repo.git" } }]),
+  getRemotes: vi.fn().mockResolvedValue([{ name: "origin", refs: { fetch: "git@ssh.github.com:org/repo.git" } }]),
 };
 
 // Mock the entire module
@@ -118,7 +118,7 @@ describe("StainlessTools", () => {
 
     beforeEach(() => {
       validTools = new StainlessTools({
-        sdkRepo: "https://github.com/org/repo.git",
+        sdkRepo: "git@ssh.github.com:org/repo.git",
         branch: "main",
         targetDir: "/test/target-dir",
       });
@@ -134,7 +134,7 @@ describe("StainlessTools", () => {
       mockGit.log.mockResolvedValue({ latest: { hash: "abc123" } });
       mockGit.clone.mockResolvedValue(undefined);
       mockGit.checkout.mockResolvedValue(undefined);
-      mockGit.getRemotes.mockResolvedValue([{ name: "origin", refs: { fetch: "https://github.com/org/repo.git" } }]);
+      mockGit.getRemotes.mockResolvedValue([{ name: "origin", refs: { fetch: "git@ssh.github.com:org/repo.git" } }]);
 
       // Mock process.exit
       mockExit = vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
@@ -150,7 +150,7 @@ describe("StainlessTools", () => {
 
       await validTools.clone();
 
-      expect(mockGit.clone).toHaveBeenCalledWith("https://github.com/org/repo.git", "/test/target-dir");
+      expect(mockGit.clone).toHaveBeenCalledWith("git@ssh.github.com:org/repo.git", "/test/target-dir");
       expect(mockGit.checkout).toHaveBeenCalledWith("main");
     });
 
@@ -159,7 +159,7 @@ describe("StainlessTools", () => {
       mockGit.revparse.mockRejectedValue(new Error("not a git repo"));
 
       const toolsWithFiles = new StainlessTools({
-        sdkRepo: "https://github.com/org/repo.git",
+        sdkRepo: "git@ssh.github.com:org/repo.git",
         branch: "main",
         targetDir: "/test/target-dir",
         openApiFile: "/test/openapi.json",
@@ -180,7 +180,7 @@ describe("StainlessTools", () => {
       mockGit.revparse.mockRejectedValue(new Error("not a git repo"));
 
       const toolsWithConfigOnly = new StainlessTools({
-        sdkRepo: "https://github.com/org/repo.git",
+        sdkRepo: "git@ssh.github.com:org/repo.git",
         branch: "main",
         targetDir: "/test/target-dir",
         stainlessConfigFile: "/test/stainless-tools.json",
@@ -194,7 +194,7 @@ describe("StainlessTools", () => {
       mockGit.revparse.mockRejectedValue(new Error("not a git repo"));
 
       const toolsWithFiles = new StainlessTools({
-        sdkRepo: "https://github.com/org/repo.git",
+        sdkRepo: "git@ssh.github.com:org/repo.git",
         branch: "main",
         targetDir: "/test/target-dir",
         openApiFile: "/test/openapi.json",
@@ -227,7 +227,7 @@ describe("StainlessTools", () => {
 
     it("handles file publish failure", async () => {
       const toolsWithFiles = new StainlessTools({
-        sdkRepo: "https://github.com/org/repo.git",
+        sdkRepo: "git@ssh.github.com:org/repo.git",
         branch: "main",
         targetDir: "/test/target-dir",
         openApiFile: "/test/openapi.json",
@@ -243,7 +243,7 @@ describe("StainlessTools", () => {
     it("handles existing repository with same origin", async () => {
       // Mock directory exists and is a git repo
       mockGit.revparse.mockResolvedValue("/test/target-dir/.git");
-      mockGit.getRemotes.mockResolvedValue([{ name: "origin", refs: { fetch: "https://github.com/org/repo.git" } }]);
+      mockGit.getRemotes.mockResolvedValue([{ name: "origin", refs: { fetch: "git@ssh.github.com:org/repo.git" } }]);
 
       await validTools.clone();
 
@@ -256,11 +256,11 @@ describe("StainlessTools", () => {
     it("throws error for existing repository with different origin", async () => {
       // Mock directory exists and is a git repo
       mockGit.revparse.mockResolvedValue("/test/target-dir/.git");
-      mockGit.getRemotes.mockResolvedValue([{ name: "origin", refs: { fetch: "https://github.com/other/repo.git" } }]);
+      mockGit.getRemotes.mockResolvedValue([{ name: "origin", refs: { fetch: "git@ssh.github.com:other/repo.git" } }]);
 
       await expect(validTools.clone()).rejects.toThrow(
-        "Directory /test/target-dir contains a different repository (https://github.com/other/repo.git). " +
-          "Expected https://github.com/org/repo.git. Please remove the directory manually and try again.",
+        "Directory /test/target-dir contains a different repository (git@ssh.github.com:other/repo.git). " +
+          "Expected git@ssh.github.com:org/repo.git. Please remove the directory manually and try again.",
       );
     });
 
@@ -272,9 +272,42 @@ describe("StainlessTools", () => {
       });
 
       mockGit.revparse.mockResolvedValue("/test/target-dir/.git");
-      mockGit.getRemotes.mockResolvedValue([{ name: "origin", refs: { fetch: "https://github.com/org/repo.git" } }]);
+      mockGit.getRemotes.mockResolvedValue([{ name: "origin", refs: { fetch: "git@github.com:org/repo.git" } }]);
 
       await sshTools.clone();
+
+      expect(mockGit.clone).not.toHaveBeenCalled();
+      expect(mockGit.fetch).toHaveBeenCalled();
+      expect(mockGit.checkout).toHaveBeenCalledWith("main");
+    });
+
+    it("correctly compares SSH protocol URLs with ports", async () => {
+      // Test with git@ format against ssh:// format
+      const sshTools = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+      });
+
+      mockGit.revparse.mockResolvedValue("/test/target-dir/.git");
+      mockGit.getRemotes.mockResolvedValue([{ name: "origin", refs: { fetch: "ssh://git@ssh.github.com:443/org/repo.git" } }]);
+
+      await sshTools.clone();
+
+      expect(mockGit.clone).not.toHaveBeenCalled();
+      expect(mockGit.fetch).toHaveBeenCalled();
+      expect(mockGit.checkout).toHaveBeenCalledWith("main");
+
+      // Test with ssh:// format against git@ format
+      const sshProtocolTools = new StainlessTools({
+        sdkRepo: "ssh://git@ssh.github.com:443/org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+      });
+
+      mockGit.getRemotes.mockResolvedValue([{ name: "origin", refs: { fetch: "git@ssh.github.com:org/repo.git" } }]);
+
+      await sshProtocolTools.clone();
 
       expect(mockGit.clone).not.toHaveBeenCalled();
       expect(mockGit.fetch).toHaveBeenCalled();
@@ -285,7 +318,7 @@ describe("StainlessTools", () => {
   describe("hasNewChanges", () => {
     it("checks SDK repository for changes", async () => {
       const tools = new StainlessTools({
-        sdkRepo: "https://github.com/org/repo.git",
+        sdkRepo: "git@ssh.github.com:org/repo.git",
         branch: "main",
         targetDir: "/test/target-dir",
       });
@@ -319,7 +352,7 @@ describe("StainlessTools", () => {
 
     it("detects no changes when hash is same", async () => {
       const tools = new StainlessTools({
-        sdkRepo: "https://github.com/org/repo.git",
+        sdkRepo: "git@ssh.github.com:org/repo.git",
         branch: "main",
         targetDir: "/test/target-dir",
       });
@@ -335,7 +368,7 @@ describe("StainlessTools", () => {
 
     it("handles fetch errors", async () => {
       const tools = new StainlessTools({
-        sdkRepo: "https://github.com/org/repo.git",
+        sdkRepo: "git@ssh.github.com:org/repo.git",
         branch: "main",
         targetDir: "/test/target-dir",
       });
@@ -355,7 +388,7 @@ describe("StainlessTools", () => {
 
     beforeEach(() => {
       validTools = new StainlessTools({
-        sdkRepo: "https://github.com/org/repo.git",
+        sdkRepo: "git@ssh.github.com:org/repo.git",
         branch: "main",
         targetDir: "/test/target-dir",
       });
@@ -384,7 +417,7 @@ describe("StainlessTools", () => {
 
     it("pulls changes from clean repository", async () => {
       const tools = new StainlessTools({
-        sdkRepo: "https://github.com/org/repo.git",
+        sdkRepo: "git@ssh.github.com:org/repo.git",
         branch: "main",
         targetDir: "/test/target-dir",
       });
@@ -400,7 +433,7 @@ describe("StainlessTools", () => {
 
     it("stashes and restores local changes when pulling", async () => {
       const tools = new StainlessTools({
-        sdkRepo: "https://github.com/org/repo.git",
+        sdkRepo: "git@ssh.github.com:org/repo.git",
         branch: "main",
         targetDir: "/test/target-dir",
       });
@@ -466,7 +499,7 @@ describe("StainlessTools", () => {
   describe("file watching", () => {
     it("starts watching files when specified", async () => {
       const tools = new StainlessTools({
-        sdkRepo: "https://github.com/org/repo.git",
+        sdkRepo: "git@ssh.github.com:org/repo.git",
         branch: "main",
         targetDir: "/test/target-dir",
         openApiFile: "/test/openapi.json",
@@ -482,7 +515,7 @@ describe("StainlessTools", () => {
 
     it("does not start watching when no files specified", async () => {
       const tools = new StainlessTools({
-        sdkRepo: "https://github.com/org/repo.git",
+        sdkRepo: "git@ssh.github.com:org/repo.git",
         branch: "main",
         targetDir: "/test/target-dir",
       });
@@ -495,7 +528,7 @@ describe("StainlessTools", () => {
 
     it("publishes files when changes detected", async () => {
       const tools = new StainlessTools({
-        sdkRepo: "https://github.com/org/repo.git",
+        sdkRepo: "git@ssh.github.com:org/repo.git",
         branch: "main",
         targetDir: "/test/target-dir",
         openApiFile: "/test/openapi.json",
@@ -521,7 +554,7 @@ describe("StainlessTools", () => {
 
     it("stops watching files on cleanup", async () => {
       const tools = new StainlessTools({
-        sdkRepo: "https://github.com/org/repo.git",
+        sdkRepo: "git@ssh.github.com:org/repo.git",
         branch: "main",
         targetDir: "/test/target-dir",
         openApiFile: "/test/openapi.json",
@@ -541,7 +574,7 @@ describe("StainlessTools", () => {
     it("polls and pulls remote changes", async () => {
       const options = {
         sdkName: "test-sdk",
-        sdkRepo: "https://github.com/org/repo.git",
+        sdkRepo: "git@ssh.github.com:org/repo.git",
         branch: "main",
         targetDir: "/test/target-dir",
         pollIntervalMs: 100, // Short interval for testing

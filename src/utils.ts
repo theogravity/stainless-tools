@@ -11,7 +11,18 @@ export function isValidRepoPath(path: string): boolean {
 }
 
 export function isValidGitUrl(url: string): boolean {
-  // Handle SSH URLs (git@github.com:user/repo.git)
+  // Handle SSH URLs with protocol (ssh://git@github.com:443/user/repo.git)
+  if (url.startsWith("ssh://")) {
+    try {
+      const sshUrl = new URL(url);
+      const path = sshUrl.pathname.slice(1); // Remove leading slash
+      return isValidDomain(sshUrl.hostname) && isValidRepoPath(path);
+    } catch {
+      return false;
+    }
+  }
+
+  // Handle traditional SSH URLs (git@github.com:user/repo.git)
   if (url.startsWith("git@")) {
     const [prefix, repoPath] = url.split(":");
     const domain = prefix.slice(4); // Remove 'git@'

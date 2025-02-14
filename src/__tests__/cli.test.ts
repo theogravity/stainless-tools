@@ -242,7 +242,7 @@ describe("CLI", () => {
     it("handles error when directory contains different repository", async () => {
       const mockConfig = {
         stainlessSdkRepos: {
-          "test-sdk": "test-sdk-repo",
+          "test-sdk": "git@github.com:org/repo.git",
         },
         defaults: {
           branch: "main",
@@ -256,19 +256,18 @@ describe("CLI", () => {
 
       // Mock the error from StainlessTools for a different repository
       const error = new StainlessError(
-        "Directory /mock/test/dir/sdks/test-sdk contains a different repository (https://github.com/other/repo.git). " +
-          "Expected test-sdk-repo. Please remove the directory manually and try again.",
+        "Directory /mock/test/dir/sdks/test-sdk contains a different repository (git@github.com:other/repo.git). " +
+          "Expected git@github.com:org/repo.git. Please remove the directory manually and try again.",
       );
       vi.mocked(generateAndWatchSDK).mockRejectedValue(error);
 
       const exitCode = await generateAction("test-sdk", {});
       expect(exitCode).toBe(1);
       expect(mockSpinner.fail).toHaveBeenCalled();
-      console.log("Console output:", JSON.stringify(consoleOutput, null, 2));
       // Check for key parts of the error message separately
       expect(consoleOutput.some((line) => line.includes("different repository"))).toBe(true);
-      expect(consoleOutput.some((line) => line.includes("https://github.com/other/repo.git"))).toBe(true);
-      expect(consoleOutput.some((line) => line.includes("test-sdk-repo"))).toBe(true);
+      expect(consoleOutput.some((line) => line.includes("git@github.com:other/repo.git"))).toBe(true);
+      expect(consoleOutput.some((line) => line.includes("git@github.com:org/repo.git"))).toBe(true);
       expect(consoleOutput.some((line) => line.includes("remove the directory manually"))).toBe(true);
     });
 
