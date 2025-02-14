@@ -170,9 +170,6 @@ export class StainlessTools {
           guessConfig: this.options.stainlessApiOptions?.guessConfig,
         });
 
-        console.log(
-          "✓ Successfully published changes to Stainless API. Please wait up to a minute for new SDK updates.",
-        );
         this.options.spinner?.start("Listening for new SDK updates...");
       } catch (error) {
         const files = [
