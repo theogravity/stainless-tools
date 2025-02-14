@@ -1,5 +1,11 @@
 # stainless-tools changelog
 
+## 1.1.1
+
+### Patch Changes
+
+- [#7](https://github.com/theogravity/stainless-tools/pull/7) [`009ccce`](https://github.com/theogravity/stainless-tools/commit/009ccceb996ee3301d34a2faeab50cef03e55548) Thanks [@theogravity](https://github.com/theogravity)! - Add support for a `.env.override` file.
+
 ## 1.1.0
 
 ### Minor Changes
