@@ -1,5 +1,15 @@
 # stainless-tools changelog
 
+## 2.0.0
+
+### Major Changes
+
+- [#9](https://github.com/theogravity/stainless-tools/pull/9) [`17bf174`](https://github.com/theogravity/stainless-tools/commit/17bf174123ce79765a6315656065fce693edaa1e) Thanks [@theogravity](https://github.com/theogravity)! - Breaking: the config file for stainless-tools is renamed from `stainless` to `stainless-tools`. See `Configuration` in the README for more info
+
+### Patch Changes
+
+- [#11](https://github.com/theogravity/stainless-tools/pull/11) [`4a6f126`](https://github.com/theogravity/stainless-tools/commit/4a6f1265a0f4a6384c25151b6d3efcfe300c7cd8) Thanks [@theogravity](https://github.com/theogravity)! - Fixes an issue where if an sdk is already checked out and the tool is re-executed, the check to see if the sdk repo is cloned from the origin was too strict, preventing the repo from being updated
+
 ## 1.1.1
 
 ### Patch Changes
