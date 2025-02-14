@@ -31,6 +31,40 @@ You must have at least Node 18 installed to use this tool.
 npm install stainless-tools -g
 ```
 
+## Staging vs Production Repositories
+
+Each SDK can have two repository URLs:
+- `staging`: Used for development and testing (typically in the `stainless-sdks` organization)
+- `prod`: Used for production releases (typically in your organization)
+
+By default, the tool uses the `staging` URL. To use the production URL, add the `--prod` flag:
+
+```bash
+# Development/testing: uses staging URL
+stainless-tools generate typescript
+
+# Production: uses production URL
+stainless-tools generate --prod typescript
+```
+
+Typical workflow:
+1. Use staging repositories for development and testing
+2. Use production repositories for releasing to users
+
+For example:
+```javascript
+{
+  "stainlessSdkRepos": {
+    "typescript": {
+      // For development/testing
+      "staging": "git@github.com:stainless-sdks/my-api-typescript.git",
+      // For production releases
+      "prod": "git@github.com:my-org/my-api-typescript.git"
+    }
+  }
+}
+```
+
 ### Prerequisites
 
 Ensure you have:
@@ -70,18 +104,20 @@ The tool uses [cosmiconfig](https://github.com/davidtheclark/cosmiconfig) for co
 ```typescript
 interface StainlessConfig {
   // Map of SDK names to their repository URLs
-  // If using the main branch, then you will want to use the production SDK repo
-  // If using non-main, eg <username>/dev, then you will want to use the staging SDK repo
-  // e.g. git@github.com:stainless-sdks/<project>-typescript.git
-  // The key is used as the <sdk-name> in the CLI
+  // Each SDK can have a staging and/or production URL
+  // By default, the staging URL is used, but you can use --prod to use the production URL
   stainlessSdkRepos: {
-    [key: string]: string;
+    [key: string]: {
+      // The staging URL is used by default
+      staging?: string;
+      // The production URL is used when --prod is specified
+      prod?: string;
+    };
   };
 
   defaults?: {
     // Default branch name for all SDKs (required if not using cli flag or the STAINLESS_SDK_BRANCH environment variable)
-    // If using the production SDK repo, then you will want to use the main branch
-    // If using the staging SDK repo, then you will want to use the <username>/dev branch
+    // Typically use 'main' for production and '<username>/dev' for staging
     // See: https://app.stainlessapi.com/docs/guides/branches
     branch?: string;
 
@@ -109,7 +145,12 @@ interface StainlessConfig {
 // stainless-tools.config.js
 module.exports = {
   stainlessSdkRepos: {
-    typescript: 'git@github.com:stainless-sdks/yourproject-typescript.git',
+    typescript: {
+      // Used by default
+      staging: 'git@github.com:stainless-sdks/yourproject-typescript-staging.git',
+      // Used when --prod is specified
+      prod: 'git@github.com:stainless-sdks/yourproject-typescript.git',
+    },
   },
   defaults: {
     branch: 'main',
@@ -140,13 +181,20 @@ Options:
   -o, --open-api-file <file>      Required: OpenAPI specification file
   -c, --config <file>             Configuration file path
   -s, --stainless-config-file <file> Optional: Stainless configuration file
-  -p, --project-name <n>       Project name for Stainless API (required when using --open-api-file)
+  -p, --project-name <n>          Project name for Stainless API (required when using --open-api-file)
   -g, --guess-config              Uses the "Guess with AI" command from the Stainless Studio for the Stainless Config if enabled
+  --prod                          Use production URLs instead of staging URLs
   -h, --help                      Display help for command
 
 ### Examples
 
 ```bash
+# Using staging URL (default)
+stainless-tools generate typescript
+
+# Using production URL
+stainless-tools generate --prod typescript
+
 # Minimal required options (when no config file)
 stainless-tools generate \
   --branch yourusername/dev \
@@ -154,18 +202,46 @@ stainless-tools generate \
   --project-name my-project \
   typescript
 
-# If using a config file with all defaults
-stainless-tools generate typescript  # Uses defaults from config
-
-# Using all CLI options
+# Using all CLI options with production URL
 stainless-tools generate \
-  --branch yourusername/dev \
+  --prod \
+  --branch main \
   --target-dir ./sdks/typescript \
   --open-api-file ./api-spec.json \
   --project-name my-project \
   --config ./stainless-tools.config.js \
   --guess-config \
   typescript
+```
+
+### Staging vs Production Repositories
+
+Each SDK can have two repository URLs:
+- `staging`: Used for development and testing
+- `prod`: Used for production releases
+
+By default, the tool uses the `staging` URL. To use the production URL, add the `--prod` flag:
+
+```bash
+# Uses staging URL
+stainless-tools generate typescript
+
+# Uses production URL
+stainless-tools generate --prod typescript
+```
+
+For example:
+```javascript
+{
+  "stainlessSdkRepos": {
+    "typescript": {
+      // Staging repo
+      "staging": "git@github.com:stainless-sdks/my-api-typescript.git",
+      // Production repo
+      "prod": "git@github.com:my-org/my-api-typescript.git"
+    }
+  }
+}
 ```
 
 ### How It Works

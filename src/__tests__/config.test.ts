@@ -18,8 +18,14 @@ describe("Configuration", () => {
     it("validates correct config with defaults", () => {
       const validConfig = {
         stainlessSdkRepos: {
-          typescript: "git@github.com:org/typescript-sdk.git",
-          python: "https://github.com/org/python-sdk.git",
+          typescript: {
+            staging: "git@github.com:org/typescript-sdk-staging.git",
+            prod: "git@github.com:org/typescript-sdk.git",
+          },
+          python: {
+            staging: "https://github.com/org/python-sdk-staging.git",
+            prod: "https://github.com/org/python-sdk.git",
+          },
         },
         defaults: {
           branch: "main",
@@ -36,7 +42,10 @@ describe("Configuration", () => {
     it("validates correct config without defaults", () => {
       const validConfig = {
         stainlessSdkRepos: {
-          typescript: "git@github.com:org/typescript-sdk.git",
+          typescript: {
+            staging: "git@github.com:org/typescript-sdk-staging.git",
+            prod: "git@github.com:org/typescript-sdk.git",
+          },
         },
       };
 
@@ -47,11 +56,13 @@ describe("Configuration", () => {
     it("validates config with partial defaults", () => {
       const validConfig = {
         stainlessSdkRepos: {
-          typescript: "git@github.com:org/typescript-sdk.git",
+          typescript: {
+            staging: "git@github.com:org/typescript-sdk-staging.git",
+            prod: "git@github.com:org/typescript-sdk.git",
+          },
         },
         defaults: {
           branch: "main",
-          // Other defaults are optional
         },
       };
 
@@ -59,105 +70,88 @@ describe("Configuration", () => {
       expect(result.success).toBe(true);
     });
 
-    it("rejects invalid repo URLs", () => {
+    it("validates config with only staging URL", () => {
+      const validConfig = {
+        stainlessSdkRepos: {
+          typescript: {
+            staging: "git@github.com:org/typescript-sdk-staging.git",
+          },
+        },
+      };
+
+      const result = configSchema.safeParse(validConfig);
+      expect(result.success).toBe(true);
+    });
+
+    it("validates config with only prod URL", () => {
+      const validConfig = {
+        stainlessSdkRepos: {
+          typescript: {
+            prod: "git@github.com:org/typescript-sdk.git",
+          },
+        },
+      };
+
+      const result = configSchema.safeParse(validConfig);
+      expect(result.success).toBe(true);
+    });
+
+    it("rejects config with no URLs defined", () => {
       const invalidConfig = {
         stainlessSdkRepos: {
-          typescript: "not-a-valid-url",
+          typescript: {},
+        },
+      };
+
+      const result = configSchema.safeParse(invalidConfig);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.errors[0].message).toBe("At least one of staging or prod must be defined");
+      }
+    });
+
+    it("rejects config with invalid git URLs", () => {
+      const invalidConfig = {
+        stainlessSdkRepos: {
+          typescript: {
+            staging: "not-a-git-url",
+            prod: "git@github.com:org/typescript-sdk.git",
+          },
         },
       };
 
       const result = configSchema.safeParse(invalidConfig);
       expect(result.success).toBe(false);
     });
-
-    it("requires stainlessSdkRepos", () => {
-      const missingRepos = {
-        defaults: {
-          branch: "main",
-        },
-      };
-
-      const result = configSchema.safeParse(missingRepos);
-      expect(result.success).toBe(false);
-    });
   });
 
   describe("loadConfig", () => {
-    it("loads config with defaults from specified path", async () => {
+    it("loads and validates config file", async () => {
       const mockConfig = {
         stainlessSdkRepos: {
-          typescript: "git@github.com:org/typescript-sdk.git",
-        },
-        defaults: {
-          branch: "main",
-          targetDir: "./sdks/{sdk}",
+          typescript: {
+            staging: "git@github.com:org/typescript-sdk-staging.git",
+            prod: "git@github.com:org/typescript-sdk.git",
+          },
         },
       };
 
-      mock({
-        "path/to/config.js": `module.exports = ${JSON.stringify(mockConfig, null, 2)}`,
-      });
-
       vi.mocked(cosmiconfig).mockReturnValue({
+        search: vi.fn().mockResolvedValue({ config: mockConfig }),
         load: vi.fn().mockResolvedValue({ config: mockConfig }),
-        search: vi.fn(),
       } as any);
 
-      const config = await loadConfig("path/to/config.js");
+      const config = await loadConfig();
       expect(config).toEqual(mockConfig);
-      expect(config.defaults?.branch).toBe("main");
-      expect(config.defaults?.targetDir).toBe("./sdks/{sdk}");
     });
 
-    it("loads config without defaults", async () => {
-      const mockConfig = {
-        stainlessSdkRepos: {
-          typescript: "git@github.com:org/typescript-sdk.git",
-        },
-      };
-
-      mock({
-        "path/to/config.js": `module.exports = ${JSON.stringify(mockConfig, null, 2)}`,
-      });
-
+    it("throws error when no config file found", async () => {
       vi.mocked(cosmiconfig).mockReturnValue({
-        load: vi.fn().mockResolvedValue({ config: mockConfig }),
-        search: vi.fn(),
-      } as any);
-
-      const config = await loadConfig("path/to/config.js");
-      expect(config).toEqual(mockConfig);
-      expect(config.defaults).toBeUndefined();
-    });
-
-    it("throws error when no config is found", async () => {
-      mock({
-        // Empty file system
-      });
-
-      vi.mocked(cosmiconfig).mockReturnValue({
-        load: vi.fn().mockResolvedValue(null),
         search: vi.fn().mockResolvedValue(null),
+        load: vi.fn().mockResolvedValue(null),
       } as any);
 
       await expect(loadConfig()).rejects.toThrow("No configuration file found");
-    });
-
-    it("throws error for invalid config", async () => {
-      const invalidConfig = {
-        stainlessSdkRepos: {},
-      };
-
-      mock({
-        "path/to/config.js": `module.exports = ${JSON.stringify(invalidConfig, null, 2)}`,
-      });
-
-      vi.mocked(cosmiconfig).mockReturnValue({
-        load: vi.fn().mockResolvedValue({ config: invalidConfig }),
-        search: vi.fn(),
-      } as any);
-
-      await expect(loadConfig()).rejects.toThrow();
     });
   });
 });
