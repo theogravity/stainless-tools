@@ -1,6 +1,12 @@
+import { config } from "@dotenvx/dotenvx";
 import { cosmiconfig } from "cosmiconfig";
-import { isValidGitUrl } from "./utils";
+import { isValidGitUrl } from "./utils.js";
 import { z } from "zod";
+
+config({
+  quiet: true,
+  path: [".env", ".env.override"],
+});
 
 const gitUrlSchema = z.string().refine(isValidGitUrl, "Invalid git URL");
 
