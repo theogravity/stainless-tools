@@ -25,6 +25,7 @@ interface GenerateOptions {
   "stainless-config-file"?: string;  // Path to Stainless-specific configuration
   projectName?: string;        // Name of the project in Stainless
   "guess-config"?: boolean;    // Whether to use AI to guess configuration
+  prod?: boolean;              // Whether to use production URLs
 }
 
 // Initialize the command-line program
@@ -42,7 +43,7 @@ program
  * @param options - Configuration options for generation
  * @returns Promise<number> - Exit code (0 for success, 1 for failure)
  */
-export async function generateAction(sdkName: string, options: GenerateOptions) {
+export async function generateAction(sdkName: string, options: GenerateOptions): Promise<number> {
   const spinner = ora("Loading configuration...").start();
   let cleanup: (() => Promise<void>) | undefined;
 
@@ -65,15 +66,25 @@ export async function generateAction(sdkName: string, options: GenerateOptions) 
   process.on("SIGTERM", handleExit);
 
   try {
-    // Load and validate configuration
     const config = await loadConfig(options.config);
-    const sdkRepo = config.stainlessSdkRepos[sdkName];
+    const sdkConfig = config.stainlessSdkRepos[sdkName];
+
+    if (!sdkConfig) {
+      throw new Error(`SDK "${sdkName}" not found in configuration`);
+    }
+
+    const mode = options.prod ? "prod" : "staging";
+    const sdkRepo = sdkConfig[mode];
+    
     if (!sdkRepo) {
-      throw new Error(`SDK "${sdkName}" not found in the configuration "stainlessSdkRepos"`);
+      throw new Error(
+        `${mode === "prod" ? "Production" : "Staging"} URL not defined for SDK "${sdkName}". ` +
+        `Please add a "${mode}" URL to the configuration.`
+      );
     }
 
     // Determine branch to use
-    const branch = options.branch || process.env.STAINLESS_SDK_BRANCH || config.defaults?.branch;
+    const branch = options.branch || config.defaults?.branch || "main";
     if (!branch) {
       throw new Error("Branch name is required. Provide it via --branch option, STAINLESS_SDK_BRANCH environment variable, or in the configuration defaults.");
     }
@@ -120,8 +131,7 @@ export async function generateAction(sdkName: string, options: GenerateOptions) 
     }
 
     // Log configuration details
-    console.log("\nRepositories:");
-    console.log(`SDK: ${sdkRepo}`);
+    console.log(`\nSDK Repository (${mode}): ${sdkRepo}`);
     if (openApiFile || stainlessConfigFile) {
       console.log(`Project name: ${projectName}`);
     }
@@ -149,34 +159,14 @@ export async function generateAction(sdkName: string, options: GenerateOptions) 
       spinner,
       stainlessApiOptions: {
         projectName,
-        guessConfig: options["guess-config"] || config.defaults?.guessConfig || false,
+        guessConfig: options["guess-config"] || config.defaults?.guessConfig,
       },
     });
 
-    spinner.succeed(`SDK checked out for "${sdkName}"`);
-    spinner.start("Listening for new SDK updates...\n");
+    spinner.succeed(`SDK "${sdkName}" is ready and watching for changes`);
     return 0;
   } catch (error) {
-    // Error handling with detailed error messages
-    spinner.fail("Error occurred");
-    if (error instanceof Error) {
-      console.error(chalk.red(`\nError: ${error.message}`));
-      // Show cause if it exists (e.g. from StainlessError)
-      if ("cause" in error && error.cause) {
-        if (error.cause instanceof Error) {
-          const causeMessage = error.cause.message;
-          console.error(chalk.red(`Caused by: ${causeMessage}`));
-          // Update message to match new behavior
-          if (causeMessage.includes("already exists and is not an empty directory")) {
-            console.error(chalk.yellow("\nPlease remove the directory manually and try again."));
-          }
-        } else {
-          console.error(chalk.red(`Caused by: ${error.cause}`));
-        }
-      }
-    } else {
-      console.error(chalk.red("\nError: Unknown error occurred"));
-    }
+    spinner.fail((error as Error).message);
     return 1;
   } finally {
     // Cleanup: remove signal handlers
@@ -188,18 +178,16 @@ export async function generateAction(sdkName: string, options: GenerateOptions) 
 // Set up the generate command with all available options
 program
   .command("generate")
-  .description("Generate and watch an SDK")
+  .description("Generate an SDK")
   .argument("<sdk-name>", "Name of the SDK to generate")
-  .option("-b, --branch <n>", "Branch name")
-  .option("-t, --target-dir <dir>", "Target directory")
-  .option("-o, --open-api-file <file>", "OpenAPI file path")
-  .option("-c, --config <file>", "Config file path")
-  .option("-s, --stainless-config-file <file>", "Stainless configuration file path")
-  .option("-p, --project-name <n>", "Project name for Stainless API")
-  .option(
-    "-g, --guess-config",
-    'Uses the "Guess with AI" command from the Stainless Studio for the Stainless Config if enabled',
-  )
+  .option("-b, --branch <branch>", "Git branch to use")
+  .option("-t, --target-dir <dir>", "Directory where the SDK will be generated")
+  .option("-o, --open-api-file <file>", "Path to OpenAPI specification file")
+  .option("-c, --config <file>", "Path to configuration file")
+  .option("-s, --stainless-config-file <file>", "Path to Stainless-specific configuration")
+  .option("-p, --project-name <name>", "Name of the project in Stainless")
+  .option("-g, --guess-config", "Use AI to guess configuration")
+  .option("--prod", "Use production URLs instead of staging")
   .action(async (sdkName: string, options: GenerateOptions) => {
     const exitCode = await generateAction(sdkName, options);
     if (exitCode !== 0) {

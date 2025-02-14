@@ -11,9 +11,17 @@ config({
 
 const gitUrlSchema = z.string().refine(isValidGitUrl, "Invalid git URL");
 
+const repoConfigSchema = z.object({
+  staging: gitUrlSchema.optional(),
+  prod: gitUrlSchema.optional(),
+}).refine(
+  (data) => data.staging !== undefined || data.prod !== undefined,
+  "At least one of staging or prod must be defined"
+);
+
 export const configSchema = z.object({
   // Required fields
-  stainlessSdkRepos: z.record(z.string().min(1), gitUrlSchema),
+  stainlessSdkRepos: z.record(z.string().min(1), repoConfigSchema),
 
   // Optional default configurations
   defaults: z

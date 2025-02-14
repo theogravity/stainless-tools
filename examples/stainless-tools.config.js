@@ -9,21 +9,24 @@
 /** @type {import('../dist/config').StainlessConfig} */
 module.exports = {
   // Map of SDK names to their repository URLs
-  // If using the main branch, then you will want to use the production SDK repo
-  // If using non-main, eg <username>/dev, then you will want to use the staging SDK repo
-  // e.g. git@github.com:stainless-sdks/<project>-typescript.git
-  // The key is used as the <sdk-name> in the CLI
+  // Each SDK has a staging and production repository URL
+  // Use --prod flag to use production URLs, otherwise staging URLs are used by default
   stainlessSdkRepos: {
-    typescript: 'git@github.com:stainless-sdks/test-typescript.git',
-    python: 'git@github.com:stainless-sdks/test-python.git',
+    typescript: {
+      staging: 'git@github.com:stainless-sdks/test-typescript.git',
+      prod: 'git@github.com:test-org/test-typescript.git',
+    },
+    python: {
+      staging: 'git@github.com:stainless-sdks/test-python.git',
+      prod: 'git@github.com:test-org/test-python.git',
+    },
   },
 
   // Optional default configurations
   // These values will be used if not provided via CLI options
   defaults: {
     // Default branch name for all SDKs
-    // If using the production SDK repo, then you will want to use the main branch
-    // If using the staging SDK repo, then you will want to use the <username>/dev branch
+    // Typically use 'main' for production and '<username>/dev' for staging
     // See: https://app.stainlessapi.com/docs/guides/branches
     branch: 'main',
 

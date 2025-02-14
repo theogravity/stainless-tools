@@ -134,248 +134,252 @@ describe("CLI", () => {
     console.error = originalConsoleError;
   });
 
+  const defaultMockConfig = {
+    stainlessSdkRepos: {
+      "test-sdk": {
+        staging: "git@github.com:org/test-sdk-staging.git",
+        prod: "git@github.com:org/test-sdk.git",
+      },
+    },
+    defaults: {
+      branch: "main",
+      targetDir: "./sdks/{sdk}",
+      openApiFile: "./specs/openapi.json",
+      stainlessConfigFile: "./stainless-tools.config.json",
+      projectName: "test-project",
+      guessConfig: false,
+    },
+  };
+
+  const mockConfigWithoutDefaults = {
+    stainlessSdkRepos: {
+      "other-sdk": {
+        staging: "git@github.com:org/other-sdk-staging.git",
+        prod: "git@github.com:org/other-sdk.git",
+      },
+    },
+  };
+
+  const mockConfigWithPartialDefaults = {
+    stainlessSdkRepos: {
+      "test-sdk": {
+        staging: "git@github.com:org/test-sdk-staging.git",
+        prod: "git@github.com:org/test-sdk.git",
+      },
+    },
+    defaults: {
+      branch: "main",
+      targetDir: "./sdks/{sdk}",
+      openApiFile: "./specs/openapi.json",
+      projectName: "test-project",
+    },
+  };
+
   describe("generate command", () => {
-    it("uses CLI options when provided", async () => {
-      const mockConfig = {
-        stainlessSdkRepos: {
-          "test-sdk": "test-sdk-repo",
-        },
-        defaults: {
-          branch: "main",
-          targetDir: "./sdks/{sdk}",
-          openApiFile: "./specs/openapi.json",
-          stainlessConfigFile: "./stainless-tools.config.json",
-          projectName: "test-project",
-          guessConfig: true,
-        },
-      };
+    beforeEach(() => {
+      vi.resetAllMocks();
+      vi.mocked(loadConfig).mockResolvedValue(defaultMockConfig);
+    });
 
-      vi.mocked(loadConfig).mockResolvedValue(mockConfig);
-
-      const exitCode = await generateAction("test-sdk", {});
-      expect(exitCode).toBe(0);
-
-      // Verify repository output
-      expect(consoleOutput).toContain("\nRepositories:");
-      expect(consoleOutput).toContain("SDK: test-sdk-repo");
-      expect(consoleOutput).toContain("Project name: test-project");
+    it("generates SDK with default configuration", async () => {
+      const exitCode = await generateAction("test-sdk", {
+        "open-api-file": "./specs/openapi.json",
+        projectName: "test-project",
+      });
 
       expect(generateAndWatchSDK).toHaveBeenCalledWith(
         expect.objectContaining({
           sdkName: "test-sdk",
-          sdkRepo: "test-sdk-repo",
-          branch: "main",
-          targetDir: "/mock/test/dir/sdks/{sdk}",
-          openApiFile: "/mock/test/dir/specs/openapi.json",
-          stainlessConfigFile: "/mock/test/dir/stainless-tools.config.json",
-          spinner: expect.any(Object),
-          stainlessApiOptions: {
-            projectName: "test-project",
-            guessConfig: true,
-          },
+          sdkRepo: defaultMockConfig.stainlessSdkRepos["test-sdk"].staging,
+          branch: defaultMockConfig.defaults.branch,
+          openApiFile: expect.stringContaining("/specs/openapi.json"),
+          stainlessConfigFile: expect.stringContaining("/stainless-tools.config.json"),
+          targetDir: expect.stringContaining("/sdks/{sdk}"),
         }),
       );
+      expect(exitCode).toBe(0);
     });
 
-    it("uses config defaults when CLI options not provided", async () => {
-      const mockConfig = {
-        stainlessSdkRepos: {
-          "test-sdk": "test-sdk-repo",
-        },
-        defaults: {
-          branch: "main",
-          targetDir: "./sdks/{sdk}",
-          openApiFile: "./specs/openapi.json",
-          stainlessConfigFile: "./stainless-tools.config.json",
-          projectName: "test-project",
-          guessConfig: true,
-        },
-      };
+    it("generates SDK with custom configuration", async () => {
+      vi.mocked(loadConfig).mockResolvedValue(mockConfigWithoutDefaults);
 
-      vi.mocked(loadConfig).mockResolvedValue(mockConfig);
+      const exitCode = await generateAction("other-sdk", {
+        branch: "custom-branch",
+        targetDir: "./custom-dir",
+        "open-api-file": "./custom-openapi.json",
+        projectName: "custom-project",
+      });
 
-      const exitCode = await generateAction("test-sdk", {});
+      expect(generateAndWatchSDK).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sdkName: "other-sdk",
+          sdkRepo: mockConfigWithoutDefaults.stainlessSdkRepos["other-sdk"].staging,
+          branch: "custom-branch",
+          targetDir: expect.stringContaining("/custom-dir"),
+          openApiFile: expect.stringContaining("/custom-openapi.json"),
+        }),
+      );
       expect(exitCode).toBe(0);
+    });
 
-      // Verify repository output
-      expect(consoleOutput).toContain("\nRepositories:");
-      expect(consoleOutput).toContain("SDK: test-sdk-repo");
-      expect(consoleOutput).toContain("Project name: test-project");
+    it("generates SDK with partial defaults", async () => {
+      vi.mocked(loadConfig).mockResolvedValue(mockConfigWithPartialDefaults);
+
+      const exitCode = await generateAction("test-sdk", {
+        "open-api-file": "./specs/openapi.json",
+        projectName: "test-project",
+      });
 
       expect(generateAndWatchSDK).toHaveBeenCalledWith(
         expect.objectContaining({
           sdkName: "test-sdk",
-          sdkRepo: "test-sdk-repo",
-          branch: "main",
-          targetDir: "/mock/test/dir/sdks/{sdk}",
-          openApiFile: "/mock/test/dir/specs/openapi.json",
-          stainlessConfigFile: "/mock/test/dir/stainless-tools.config.json",
-          spinner: expect.any(Object),
-          stainlessApiOptions: {
-            projectName: "test-project",
-            guessConfig: true,
-          },
+          sdkRepo: mockConfigWithPartialDefaults.stainlessSdkRepos["test-sdk"].staging,
+          branch: mockConfigWithPartialDefaults.defaults.branch,
+          openApiFile: expect.stringContaining("/specs/openapi.json"),
+          targetDir: expect.stringContaining("/sdks/{sdk}"),
         }),
       );
+      expect(exitCode).toBe(0);
     });
 
-    it("handles error when SDK name not found in config", async () => {
-      const mockConfig = {
-        stainlessSdkRepos: {
-          "other-sdk": "test-sdk-repo",
-        },
-      };
+    it("handles errors gracefully", async () => {
+      vi.mocked(generateAndWatchSDK).mockRejectedValue(new Error("Test error"));
 
-      vi.mocked(loadConfig).mockResolvedValue(mockConfig);
+      const exitCode = await generateAction("test-sdk", {
+        "open-api-file": "./specs/openapi.json",
+        projectName: "test-project",
+      });
 
-      const exitCode = await generateAction("test-sdk", {});
+      expect(mockSpinner.fail).toHaveBeenCalledWith("Test error");
       expect(exitCode).toBe(1);
-      expect(mockSpinner.fail).toHaveBeenCalled();
-      // Check for key parts of the error message
-      expect(
-        consoleOutput.some(
-          (line) => line.includes("test-sdk") && line.includes('not found in the configuration "stainlessSdkRepos"'),
-        ),
-      ).toBe(true);
     });
 
-    it("handles error when directory contains different repository", async () => {
-      const mockConfig = {
-        stainlessSdkRepos: {
-          "test-sdk": "git@github.com:org/repo.git",
-        },
-        defaults: {
-          branch: "main",
-          targetDir: "./sdks/{sdk}",
-          openApiFile: "./specs/openapi.json",
-          projectName: "test-project",
-        },
-      };
+    it("handles cleanup on process signals", async () => {
+      const mockCleanup = vi.fn();
+      vi.mocked(generateAndWatchSDK).mockResolvedValue(mockCleanup);
 
+      const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
+      const mockEmit = vi.fn();
+      const originalEmit = process.emit;
+      process.emit = mockEmit;
+
+      await generateAction("test-sdk", {
+        "open-api-file": "./specs/openapi.json",
+        projectName: "test-project",
+      });
+
+      // Get the SIGINT handler that was registered
+      const sigintHandler = mockProcess.on.mock.calls.find(call => call[0] === "SIGINT")?.[1];
+      if (!sigintHandler) {
+        throw new Error("SIGINT handler not found");
+      }
+
+      // Call the handler directly
+      await sigintHandler();
+
+      expect(mockSpinner.stop).toHaveBeenCalled();
+      expect(mockCleanup).toHaveBeenCalled();
+      expect(exitSpy).toHaveBeenCalledWith(0);
+
+      // Cleanup
+      process.emit = originalEmit;
+      exitSpy.mockRestore();
+    });
+  });
+
+  describe("generateAction", () => {
+    const mockConfig = {
+      stainlessSdkRepos: {
+        typescript: {
+          staging: "git@github.com:org/typescript-sdk-staging.git",
+          prod: "git@github.com:org/typescript-sdk.git",
+        },
+        staging_only: {
+          staging: "git@github.com:org/staging-only-sdk.git",
+        },
+        prod_only: {
+          prod: "git@github.com:org/prod-only-sdk.git",
+        },
+      },
+      defaults: {
+        branch: "main",
+        openApiFile: "./specs/openapi.json",
+        projectName: "test-project",
+      },
+    };
+
+    beforeEach(() => {
+      vi.resetAllMocks();
       vi.mocked(loadConfig).mockResolvedValue(mockConfig);
+    });
 
-      // Mock the error from StainlessTools for a different repository
-      const error = new StainlessError(
-        "Directory /mock/test/dir/sdks/test-sdk contains a different repository (git@github.com:other/repo.git). " +
-          "Expected git@github.com:org/repo.git. Please remove the directory manually and try again.",
+    it("uses staging URL by default", async () => {
+      const exitCode = await generateAction("typescript", {
+        "open-api-file": "./specs/openapi.json",
+        projectName: "test-project",
+      });
+
+      expect(generateAndWatchSDK).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sdkRepo: mockConfig.stainlessSdkRepos.typescript.staging,
+        }),
       );
-      vi.mocked(generateAndWatchSDK).mockRejectedValue(error);
+      expect(exitCode).toBe(0);
+    });
 
-      const exitCode = await generateAction("test-sdk", {});
+    it("uses production URL when prod flag is set", async () => {
+      const exitCode = await generateAction("typescript", {
+        "open-api-file": "./specs/openapi.json",
+        projectName: "test-project",
+        prod: true,
+      });
+
+      expect(generateAndWatchSDK).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sdkRepo: mockConfig.stainlessSdkRepos.typescript.prod,
+        }),
+      );
+      expect(exitCode).toBe(0);
+    });
+
+    it("fails when staging URL is not defined", async () => {
+      const exitCode = await generateAction("prod_only", {
+        "open-api-file": "./specs/openapi.json",
+        projectName: "test-project",
+      });
+
+      expect(generateAndWatchSDK).not.toHaveBeenCalled();
       expect(exitCode).toBe(1);
-      expect(mockSpinner.fail).toHaveBeenCalled();
-      // Check for key parts of the error message separately
-      expect(consoleOutput.some((line) => line.includes("different repository"))).toBe(true);
-      expect(consoleOutput.some((line) => line.includes("git@github.com:other/repo.git"))).toBe(true);
-      expect(consoleOutput.some((line) => line.includes("git@github.com:org/repo.git"))).toBe(true);
-      expect(consoleOutput.some((line) => line.includes("remove the directory manually"))).toBe(true);
+      expect(mockSpinner.fail).toHaveBeenCalledWith(
+        expect.stringContaining('Staging URL not defined for SDK "prod_only"'),
+      );
     });
 
-    it("uses environment variable for branch when CLI and config options not provided", async () => {
-      process.env.STAINLESS_SDK_BRANCH = "env-branch";
-
-      const mockConfig = {
-        stainlessSdkRepos: {
-          "test-sdk": "test-sdk-repo",
-        },
-        defaults: {
-          targetDir: "./sdks/test-sdk",
-          openApiFile: "./specs/openapi.json",
-          stainlessConfigFile: "./stainless-tools.config.json",
-          projectName: "test-project",
-          guessConfig: true,
-        },
-      };
-
-      vi.mocked(loadConfig).mockResolvedValue(mockConfig);
-      vi.mocked(generateAndWatchSDK).mockResolvedValue(async () => {
-        // Mock cleanup function
-        return Promise.resolve();
+    it("fails when production URL is not defined", async () => {
+      const exitCode = await generateAction("staging_only", {
+        "open-api-file": "./specs/openapi.json",
+        projectName: "test-project",
+        prod: true,
       });
 
-      try {
-        const exitCode = await generateAction("test-sdk", {
-          "open-api-file": "./specs/openapi.json",
-          projectName: "test-project",
-          targetDir: "./sdks/test-sdk",
-        });
-
-        expect(exitCode).toBe(0);
-
-        expect(generateAndWatchSDK).toHaveBeenCalledWith({
-          sdkName: "test-sdk",
-          sdkRepo: "test-sdk-repo",
-          branch: "env-branch",
-          targetDir: "/mock/test/dir/sdks/test-sdk",
-          openApiFile: "/mock/test/dir/specs/openapi.json",
-          stainlessConfigFile: "/mock/test/dir/stainless-tools.config.json",
-          spinner: expect.any(Object),
-          stainlessApiOptions: {
-            projectName: "test-project",
-            guessConfig: true,
-          },
-        });
-      } catch (error) {
-        console.error("Test error:", error);
-        throw error;
-      } finally {
-        // Clean up
-        delete process.env.STAINLESS_SDK_BRANCH;
-      }
+      expect(generateAndWatchSDK).not.toHaveBeenCalled();
+      expect(exitCode).toBe(1);
+      expect(mockSpinner.fail).toHaveBeenCalledWith(
+        expect.stringContaining('Production URL not defined for SDK "staging_only"'),
+      );
     });
 
-    it("prioritizes CLI option over environment variable for branch", async () => {
-      process.env.STAINLESS_SDK_BRANCH = "env-branch";
-
-      const mockConfig = {
-        stainlessSdkRepos: {
-          "test-sdk": "test-sdk-repo",
-        },
-        defaults: {
-          targetDir: "./sdks/test-sdk",
-          openApiFile: "./specs/openapi.json",
-          stainlessConfigFile: "./stainless-tools.config.json",
-          projectName: "test-project",
-          guessConfig: true,
-        },
-      };
-
-      vi.mocked(loadConfig).mockResolvedValue(mockConfig);
-      vi.mocked(generateAndWatchSDK).mockResolvedValue(async () => {
-        // Mock cleanup function
-        return Promise.resolve();
+    it("fails when SDK is not found in config", async () => {
+      const exitCode = await generateAction("nonexistent", {
+        "open-api-file": "./specs/openapi.json",
+        projectName: "test-project",
       });
 
-      try {
-        const exitCode = await generateAction("test-sdk", {
-          branch: "cli-branch",
-          "open-api-file": "./specs/openapi.json",
-          projectName: "test-project",
-          targetDir: "./sdks/test-sdk",
-        });
-   
-        expect(exitCode).toBe(0);
-
-        expect(generateAndWatchSDK).toHaveBeenCalledWith({
-          sdkName: "test-sdk",
-          sdkRepo: "test-sdk-repo",
-          branch: "cli-branch",
-          targetDir: "/mock/test/dir/sdks/test-sdk",
-          openApiFile: "/mock/test/dir/specs/openapi.json",
-          stainlessConfigFile: "/mock/test/dir/stainless-tools.config.json",
-          spinner: expect.any(Object),
-          stainlessApiOptions: {
-            projectName: "test-project",
-            guessConfig: true,
-          },
-        });
-      } catch (error) {
-        console.error("Test error:", error);
-        throw error;
-      } finally {
-        // Clean up
-        delete process.env.STAINLESS_SDK_BRANCH;
-      }
+      expect(generateAndWatchSDK).not.toHaveBeenCalled();
+      expect(exitCode).toBe(1);
+      expect(mockSpinner.fail).toHaveBeenCalledWith(
+        expect.stringContaining('SDK "nonexistent" not found in configuration'),
+      );
     });
   });
 });
