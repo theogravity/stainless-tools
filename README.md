@@ -42,7 +42,7 @@ Ensure you have:
 
 Before using the tool, you need to set up your environment variables. You can do this in two ways:
 
-1. Create a `.env` file in your project root:
+1. Create a `.env` file (or `.env.override` if you auto-generate your `.env` file) in your project root:
 ```bash
 STAINLESS_API_KEY=your_api_key_here
 STAINLESS_SDK_BRANCH=your_branch_name # Optional: Override the branch name
