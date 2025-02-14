@@ -79,7 +79,7 @@ describe("StainlessTools", () => {
       "/test/config-repo": {},
       "/test/target-dir": {},
       "/test/openapi.json": '{"openapi": "3.0.0"}',
-      "/test/stainless.json": '{"name": "test-api"}',
+      "/test/stainless-tools.json": '{"name": "test-api"}',
     });
   });
 
@@ -96,7 +96,7 @@ describe("StainlessTools", () => {
           branch: "main",
           targetDir: "/test/target-dir",
           openApiFile: "/test/openapi.json",
-          stainlessConfigFile: "/test/stainless.json",
+          stainlessConfigFile: "/test/stainless-tools.json",
         });
       }).not.toThrow();
     });
@@ -183,7 +183,7 @@ describe("StainlessTools", () => {
         sdkRepo: "https://github.com/org/repo.git",
         branch: "main",
         targetDir: "/test/target-dir",
-        stainlessConfigFile: "/test/stainless.json",
+        stainlessConfigFile: "/test/stainless-tools.json",
       });
 
       await expect(toolsWithConfigOnly.clone()).rejects.toThrow("OpenAPI specification file is required");
@@ -198,7 +198,7 @@ describe("StainlessTools", () => {
         branch: "main",
         targetDir: "/test/target-dir",
         openApiFile: "/test/openapi.json",
-        stainlessConfigFile: "/test/stainless.json",
+        stainlessConfigFile: "/test/stainless-tools.json",
       });
 
       await toolsWithFiles.clone();
@@ -231,7 +231,7 @@ describe("StainlessTools", () => {
         branch: "main",
         targetDir: "/test/target-dir",
         openApiFile: "/test/openapi.json",
-        stainlessConfigFile: "/test/stainless.json",
+        stainlessConfigFile: "/test/stainless-tools.json",
       });
 
       mockGit.log.mockResolvedValue({ latest: { hash: "abc123" } });
@@ -470,13 +470,13 @@ describe("StainlessTools", () => {
         branch: "main",
         targetDir: "/test/target-dir",
         openApiFile: "/test/openapi.json",
-        stainlessConfigFile: "/test/stainless.json",
+        stainlessConfigFile: "/test/stainless-tools.json",
       });
 
       mockGit.log.mockResolvedValue({ latest: { hash: "abc123" } });
       await tools.clone();
 
-      expect(watch).toHaveBeenCalledWith(["/test/openapi.json", "/test/stainless.json"], expect.any(Object));
+      expect(watch).toHaveBeenCalledWith(["/test/openapi.json", "/test/stainless-tools.json"], expect.any(Object));
       expect(mockWatcher.on).toHaveBeenCalledWith("change", expect.any(Function));
     });
 
@@ -499,7 +499,7 @@ describe("StainlessTools", () => {
         branch: "main",
         targetDir: "/test/target-dir",
         openApiFile: "/test/openapi.json",
-        stainlessConfigFile: "/test/stainless.json",
+        stainlessConfigFile: "/test/stainless-tools.json",
       });
 
       mockGit.log.mockResolvedValue({ latest: { hash: "abc123" } });
@@ -525,7 +525,7 @@ describe("StainlessTools", () => {
         branch: "main",
         targetDir: "/test/target-dir",
         openApiFile: "/test/openapi.json",
-        stainlessConfigFile: "/test/stainless.json",
+        stainlessConfigFile: "/test/stainless-tools.json",
       });
 
       mockGit.log.mockResolvedValue({ latest: { hash: "abc123" } });

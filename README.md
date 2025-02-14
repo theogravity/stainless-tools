@@ -60,10 +60,10 @@ The `STAINLESS_SDK_BRANCH` environment variable is optional and can be used to o
 
 The tool uses [cosmiconfig](https://github.com/davidtheclark/cosmiconfig) for configuration management. You can define your configuration in any of these ways:
 
-- A `stainless` property in package.json
-- A `.stainlessrc` file in JSON or YAML format
-- A `.stainlessrc.json`, `.stainlessrc.yaml`, `.stainlessrc.yml`, `.stainlessrc.js`, or `.stainlessrc.cjs` file
-- A `stainless.config.js` or `stainless.config.cjs` CommonJS module
+- A `stainless-tools` property in package.json
+- A `.stainless-toolsrc` file in JSON or YAML format
+- A `.stainless-toolsrc.json`, `.stainless-toolsrc.yaml`, `.stainless-toolsrc.yml`, `.stainless-toolsrc.js`, or `.stainless-toolsrc.cjs` file
+- A `stainless-tools.config.js` or `stainless-tools.config.cjs` CommonJS module
 
 #### Configuration Schema
 
@@ -106,7 +106,7 @@ interface StainlessConfig {
 #### Example Configuration
 
 ```javascript
-// stainless.config.js
+// stainless-tools.config.js
 module.exports = {
   stainlessSdkRepos: {
     typescript: 'git@github.com:stainless-sdks/yourproject-typescript.git',
@@ -115,7 +115,7 @@ module.exports = {
     branch: 'main',
     targetDir: './sdks/{sdk}',
     openApiFile: './specs/openapi.yml',
-    stainlessConfigFile: './stainless.config.yml',
+    stainlessConfigFile: './stainless-tools.config.yml',
     projectName: 'my-project',
     guessConfig: false
   }
@@ -163,7 +163,7 @@ stainless-tools generate \
   --target-dir ./sdks/typescript \
   --open-api-file ./api-spec.json \
   --project-name my-project \
-  --config ./stainless.config.js \
+  --config ./stainless-tools.config.js \
   --guess-config \
   typescript
 ```

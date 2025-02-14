@@ -25,7 +25,7 @@ describe("Configuration", () => {
           branch: "main",
           targetDir: "./sdks/{sdk}",
           openApiFile: "./specs/openapi.json",
-          stainlessConfigFile: "./stainless.config.json",
+          stainlessConfigFile: "./stainless-tools.config.json",
         },
       };
 
