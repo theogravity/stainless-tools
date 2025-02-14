@@ -1,5 +1,23 @@
 # stainless-tools changelog
 
+## 3.1.0
+
+### Minor Changes
+
+- [`3f51b66`](https://github.com/theogravity/stainless-tools/commit/3f51b66688aa8c8d7aa8ef53e062b5e84cd37d40) Thanks [@theogravity](https://github.com/theogravity)! - Add additional `targetDir` template variables: `{env}` and `{branch}`.
+
+  ### Target Directory Templates
+
+  The `targetDir` configuration supports template variables that are dynamically replaced when generating SDKs:
+
+  - `{sdk}`: Replaced with the name of the SDK being generated
+  - `{env}`: Replaced with the current environment (`staging` or `prod`)
+  - `{branch}`: Replaced with the git branch name (forward slashes are converted to hyphens for filesystem compatibility)
+
+### Patch Changes
+
+- [#17](https://github.com/theogravity/stainless-tools/pull/17) [`6db01ab`](https://github.com/theogravity/stainless-tools/commit/6db01ab3d14e3e0dc69f4d80c9c4b77409278e0c) Thanks [@theogravity](https://github.com/theogravity)! - Refactor tests
+
 ## 3.0.0
 
 ### Major Changes
