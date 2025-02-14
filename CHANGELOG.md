@@ -1,5 +1,13 @@
 # stainless-tools changelog
 
+## 2.0.1
+
+### Patch Changes
+
+- [#14](https://github.com/theogravity/stainless-tools/pull/14) [`561a759`](https://github.com/theogravity/stainless-tools/commit/561a759ceb286d926093bc06a6a5d6b54047cf5f) Thanks [@theogravity](https://github.com/theogravity)! - Fixes an issue where the config / openapi publication prints out twice
+
+- [#12](https://github.com/theogravity/stainless-tools/pull/12) [`2959452`](https://github.com/theogravity/stainless-tools/commit/29594528520d00814f536104f4efe0dc194a9c1f) Thanks [@theogravity](https://github.com/theogravity)! - Remote and local repo URI comparision is still too strict. Relaxing to only compare against the `org/repo-name` instead of a full URI
+
 ## 2.0.0
 
 ### Major Changes
