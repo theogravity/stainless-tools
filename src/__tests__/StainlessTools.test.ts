@@ -1,0 +1,586 @@
+import { watch } from "chokidar";
+import type { FSWatcher } from "chokidar";
+import mock from "mock-fs";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { StainlessError } from "../StainlessError";
+import { StainlessTools } from "../StainlessTools";
+
+// Mock chokidar
+vi.mock("chokidar", () => {
+  const mockOn = vi.fn().mockReturnThis();
+  const mockClose = vi.fn();
+
+  return {
+    watch: vi.fn().mockReturnValue({
+      on: mockOn,
+      close: mockClose,
+    } as unknown as FSWatcher),
+  };
+});
+
+// Mock StainlessApi
+const mockPublish = vi.fn().mockResolvedValue(undefined);
+vi.mock("../StainlessApi", () => ({
+  StainlessApi: vi.fn().mockImplementation((options = {}) => {
+    // Mock the constructor behavior
+    if (!options.apiKey && !process.env.STAINLESS_API_KEY) {
+      process.env.STAINLESS_API_KEY = "test-api-key";
+    }
+    return {
+      publish: mockPublish,
+      baseUrl: options.baseUrl || "https://api.stainlessapi.com",
+      apiKey: options.apiKey || process.env.STAINLESS_API_KEY,
+    };
+  }),
+}));
+
+// Mock simple-git
+const mockGit = {
+  clone: vi.fn(),
+  cwd: vi.fn(),
+  checkout: vi.fn(),
+  log: vi.fn(),
+  fetch: vi.fn(),
+  pull: vi.fn(),
+  status: vi.fn(),
+  stash: vi.fn(),
+  revparse: vi.fn(),
+  getRemotes: vi.fn(),
+};
+
+vi.mock("simple-git", () => ({
+  default: () => mockGit,
+}));
+
+// Get the mocked watch function for use in tests
+const mockWatch = vi.mocked(watch);
+
+describe("StainlessTools", () => {
+  beforeEach(() => {
+    // Reset all mocks
+    vi.clearAllMocks();
+    mockPublish.mockReset();
+    mockGit.clone.mockReset();
+    mockGit.cwd.mockReset();
+    mockGit.checkout.mockReset();
+    mockGit.log.mockReset();
+    mockGit.fetch.mockReset();
+    mockGit.pull.mockReset();
+    mockGit.status.mockReset();
+    mockGit.stash.mockReset();
+    mockGit.revparse.mockReset();
+    mockGit.getRemotes.mockReset();
+
+    // Set default successful responses
+    mockGit.status.mockResolvedValue({ isClean: () => true });
+    mockGit.log.mockResolvedValue({ latest: { hash: "abc123" } });
+    mockGit.clone.mockResolvedValue(undefined);
+    mockGit.cwd.mockResolvedValue(undefined);
+    mockGit.checkout.mockResolvedValue(undefined);
+    mockGit.fetch.mockResolvedValue(undefined);
+    mockGit.pull.mockResolvedValue(undefined);
+    mockGit.revparse.mockResolvedValue(undefined);
+    mockGit.getRemotes.mockResolvedValue([{ name: "origin", refs: { fetch: "git@ssh.github.com:org/repo.git" } }]);
+
+    // Setup mock filesystem
+    mock({
+      "/test/sdk-repo": {},
+      "/test/config-repo": {},
+      "/test/target-dir": {},
+      "/test/openapi.json": '{"openapi": "3.0.0"}',
+      "/test/stainless-tools.json": '{"name": "test-api"}',
+    });
+  });
+
+  afterEach(() => {
+    mock.restore();
+    delete process.env.STAINLESS_API_KEY;
+  });
+
+  describe("constructor", () => {
+    it("validates inputs correctly", () => {
+      expect(() => {
+        new StainlessTools({
+          sdkRepo: "https://github.com/org/repo.git",
+          branch: "main",
+          targetDir: "/test/target-dir",
+          openApiFile: "/test/openapi.json",
+          stainlessConfigFile: "/test/stainless-tools.json",
+        });
+      }).not.toThrow();
+    });
+
+    it("accepts optional files", () => {
+      expect(() => {
+        new StainlessTools({
+          sdkRepo: "https://github.com/org/repo.git",
+          branch: "main",
+          targetDir: "/test/target-dir",
+        });
+      }).not.toThrow();
+    });
+  });
+
+  describe("clone", () => {
+    let validTools: StainlessTools;
+    let mockExit: any;
+
+    beforeEach(() => {
+      validTools = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+      });
+
+      // Reset mock implementations
+      mockGit.revparse.mockReset();
+      mockGit.getRemotes.mockReset();
+      mockGit.log.mockReset();
+      mockGit.clone.mockReset();
+      mockGit.checkout.mockReset();
+
+      // Set default successful responses
+      mockGit.log.mockResolvedValue({ latest: { hash: "abc123" } });
+      mockGit.clone.mockResolvedValue(undefined);
+      mockGit.checkout.mockResolvedValue(undefined);
+      mockGit.getRemotes.mockResolvedValue([{ name: "origin", refs: { fetch: "git@ssh.github.com:org/repo.git" } }]);
+
+      // Mock process.exit
+      mockExit = vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
+    });
+
+    afterEach(() => {
+      mockExit.mockRestore();
+    });
+
+    it("clones repository successfully", async () => {
+      // Mock directory does not exist
+      mockGit.revparse.mockRejectedValue(new Error("not a git repo"));
+
+      await validTools.clone();
+
+      expect(mockGit.clone).toHaveBeenCalledWith("git@ssh.github.com:org/repo.git", "/test/target-dir");
+      expect(mockGit.checkout).toHaveBeenCalledWith("main");
+    });
+
+    it("publishes files when specified", async () => {
+      // Mock directory does not exist
+      mockGit.revparse.mockRejectedValue(new Error("not a git repo"));
+
+      const toolsWithFiles = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+        openApiFile: "/test/openapi.json",
+      });
+
+      await toolsWithFiles.clone();
+
+      expect(mockPublish).toHaveBeenCalledWith(
+        expect.objectContaining({
+          spec: expect.any(Buffer),
+          branch: "main",
+        }),
+      );
+    });
+
+    it("requires OpenAPI file", async () => {
+      // Mock directory does not exist
+      mockGit.revparse.mockRejectedValue(new Error("not a git repo"));
+
+      const toolsWithConfigOnly = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+        stainlessConfigFile: "/test/stainless-tools.json",
+      });
+
+      await expect(toolsWithConfigOnly.clone()).rejects.toThrow("OpenAPI specification file is required");
+    });
+
+    it("publishes files with OpenAPI and config", async () => {
+      // Mock directory does not exist
+      mockGit.revparse.mockRejectedValue(new Error("not a git repo"));
+
+      const toolsWithFiles = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+        openApiFile: "/test/openapi.json",
+        stainlessConfigFile: "/test/stainless-tools.json",
+      });
+
+      await toolsWithFiles.clone();
+
+      expect(mockPublish).toHaveBeenCalledWith(
+        expect.objectContaining({
+          spec: expect.any(Buffer),
+          config: expect.any(Buffer),
+          branch: "main",
+        }),
+      );
+    });
+
+    it("handles clone failure", async () => {
+      // Mock directory does not exist
+      mockGit.revparse.mockRejectedValue(new Error("not a git repo"));
+
+      // Mock clone failure
+      mockGit.clone.mockRejectedValue(new Error("Clone failed"));
+
+      // Mock getRemotes to return empty array to avoid existing repo path
+      mockGit.getRemotes.mockResolvedValue([]);
+
+      await expect(validTools.clone()).rejects.toThrow("Failed to clone SDK repository");
+    });
+
+    it("handles file publish failure", async () => {
+      const toolsWithFiles = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+        openApiFile: "/test/openapi.json",
+        stainlessConfigFile: "/test/stainless-tools.json",
+      });
+
+      mockGit.log.mockResolvedValue({ latest: { hash: "abc123" } });
+      mockPublish.mockRejectedValue(new Error("Publish failed"));
+
+      await expect(toolsWithFiles.clone()).rejects.toThrow(StainlessError);
+    });
+
+    it("handles existing repository with same origin", async () => {
+      // Mock directory exists and is a git repo
+      mockGit.revparse.mockResolvedValue("/test/target-dir/.git");
+      mockGit.getRemotes.mockResolvedValue([{ name: "origin", refs: { fetch: "git@ssh.github.com:org/repo.git" } }]);
+
+      await validTools.clone();
+
+      expect(mockGit.clone).not.toHaveBeenCalled();
+      expect(mockGit.fetch).toHaveBeenCalled();
+      expect(mockGit.checkout).toHaveBeenCalledWith("main");
+      expect(mockGit.pull).toHaveBeenCalled();
+    });
+
+    it("throws error for existing repository with different origin", async () => {
+      // Mock directory exists and is a git repo
+      mockGit.revparse.mockResolvedValue("/test/target-dir/.git");
+      mockGit.getRemotes.mockResolvedValue([{ name: "origin", refs: { fetch: "git@ssh.github.com:other/repo.git" } }]);
+
+      await expect(validTools.clone()).rejects.toThrow(
+        "Directory /test/target-dir contains a different repository (git@ssh.github.com:other/repo.git). " +
+          "Expected git@ssh.github.com:org/repo.git. Please remove the directory manually and try again.",
+      );
+    });
+
+    it("correctly compares SSH and HTTPS repository URLs", async () => {
+      const sshTools = new StainlessTools({
+        sdkRepo: "git@github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+      });
+
+      mockGit.revparse.mockResolvedValue("/test/target-dir/.git");
+      mockGit.getRemotes.mockResolvedValue([{ name: "origin", refs: { fetch: "git@github.com:org/repo.git" } }]);
+
+      await sshTools.clone();
+
+      expect(mockGit.clone).not.toHaveBeenCalled();
+      expect(mockGit.fetch).toHaveBeenCalled();
+      expect(mockGit.checkout).toHaveBeenCalledWith("main");
+    });
+
+    it("correctly compares SSH protocol URLs with ports", async () => {
+      // Test with git@ format against ssh:// format
+      const sshTools = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+      });
+
+      mockGit.revparse.mockResolvedValue("/test/target-dir/.git");
+      mockGit.getRemotes.mockResolvedValue([{ name: "origin", refs: { fetch: "ssh://git@ssh.github.com:443/org/repo.git" } }]);
+
+      await sshTools.clone();
+
+      expect(mockGit.clone).not.toHaveBeenCalled();
+      expect(mockGit.fetch).toHaveBeenCalled();
+      expect(mockGit.checkout).toHaveBeenCalledWith("main");
+
+      // Test with ssh:// format against git@ format
+      const sshProtocolTools = new StainlessTools({
+        sdkRepo: "ssh://git@ssh.github.com:443/org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+      });
+
+      mockGit.getRemotes.mockResolvedValue([{ name: "origin", refs: { fetch: "git@ssh.github.com:org/repo.git" } }]);
+
+      await sshProtocolTools.clone();
+
+      expect(mockGit.clone).not.toHaveBeenCalled();
+      expect(mockGit.fetch).toHaveBeenCalled();
+      expect(mockGit.checkout).toHaveBeenCalledWith("main");
+    });
+  });
+
+  describe("hasNewChanges", () => {
+    it("checks SDK repository for changes", async () => {
+      const tools = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+      });
+
+      // Mock initial clone with local hash
+      mockGit.log.mockImplementation(async (params) => {
+        if (!params || params.length === 0) {
+          return { latest: { hash: "abc123" } }; // Local hash
+        }
+        return { latest: { hash: "abc123" } }; // Remote hash matches initially
+      });
+
+      await tools.clone();
+
+      // Mock subsequent check with different remote hash
+      mockGit.log.mockImplementation(async (params) => {
+        if (!params || params.length === 0) {
+          return { latest: { hash: "abc123" } }; // Local hash stays same
+        }
+        if (params[0] === "origin/main") {
+          return { latest: { hash: "def456" } }; // Remote hash is different
+        }
+        return { latest: { hash: "" } };
+      });
+
+      const hasChanges = await tools.hasNewChanges();
+
+      expect(hasChanges).toBe(true);
+      expect(mockGit.fetch).toHaveBeenCalled();
+    });
+
+    it("detects no changes when hash is same", async () => {
+      const tools = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+      });
+
+      mockGit.log.mockResolvedValue({ latest: { hash: "abc123" } });
+      await tools.clone();
+
+      mockGit.log.mockResolvedValue({ latest: { hash: "abc123" } });
+      const hasChanges = await tools.hasNewChanges();
+
+      expect(hasChanges).toBe(false);
+    });
+
+    it("handles fetch errors", async () => {
+      const tools = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+      });
+
+      mockGit.log.mockResolvedValue({ latest: { hash: "abc123" } });
+      await tools.clone();
+
+      mockGit.fetch.mockRejectedValue(new Error("Fetch failed"));
+      await expect(tools.hasNewChanges()).rejects.toThrow(StainlessError);
+    });
+  });
+
+  describe("pullChanges", () => {
+    let validTools: StainlessTools;
+    let mockExit: any;
+    let consoleSpy: any;
+
+    beforeEach(() => {
+      validTools = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+      });
+
+      // Reset mock implementations
+      mockGit.status.mockReset();
+      mockGit.stash.mockReset();
+      mockGit.pull.mockReset();
+      mockGit.log.mockReset();
+
+      // Set default successful responses
+      mockGit.status.mockResolvedValue({ isClean: () => true });
+      mockGit.stash.mockResolvedValue(undefined);
+      mockGit.pull.mockResolvedValue(undefined);
+      mockGit.log.mockResolvedValue({ latest: { hash: "abc123" } });
+
+      // Mock process.exit and console.log
+      mockExit = vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
+      consoleSpy = vi.spyOn(console, "log");
+    });
+
+    afterEach(() => {
+      mockExit.mockRestore();
+      consoleSpy.mockRestore();
+    });
+
+    it("pulls changes from clean repository", async () => {
+      const tools = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+      });
+
+      mockGit.status.mockResolvedValue({ isClean: () => true });
+      mockGit.log.mockResolvedValue({ latest: { hash: "abc123" } });
+      await tools.clone();
+      await tools.pullChanges();
+
+      expect(mockGit.stash).not.toHaveBeenCalled();
+      expect(mockGit.pull).toHaveBeenCalled();
+    });
+
+    it("stashes and restores local changes when pulling", async () => {
+      const tools = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+      });
+
+      // Mock repository with local changes
+      mockGit.status.mockResolvedValue({ isClean: () => false });
+      mockGit.log.mockResolvedValue({ latest: { hash: "abc123" } });
+
+      await tools.clone();
+      await tools.pullChanges();
+
+      expect(mockGit.stash).toHaveBeenCalledWith(["push", "-u", "-m", "Stashing changes before SDK update"]);
+      expect(mockGit.pull).toHaveBeenCalled();
+      expect(mockGit.stash).toHaveBeenCalledWith(["pop"]);
+    });
+
+    it("restores local changes even if pull fails", async () => {
+      // Mock repository with local changes and pull failure
+      mockGit.status.mockResolvedValue({ isClean: () => false });
+      mockGit.pull.mockRejectedValue(new Error("Pull failed"));
+
+      await validTools.pullChanges().catch(() => {});
+
+      expect(mockGit.stash).toHaveBeenCalledWith(["push", "-u", "-m", "Stashing changes before SDK update"]);
+      expect(mockGit.stash).toHaveBeenCalledWith(["pop"]);
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Could not update to the latest SDK version"));
+      expect(mockExit).toHaveBeenCalledWith(1);
+    });
+
+    it("handles stash conflicts by preserving changes and exiting", async () => {
+      // Mock repository with local changes
+      mockGit.status.mockResolvedValue({ isClean: () => false });
+      mockGit.stash.mockImplementation(async (args) => {
+        if (args[0] === "pop") {
+          throw new Error("stash pop failed");
+        }
+        if (args[0] === "list") {
+          return "stash@{0}: On main: stash message";
+        }
+        return undefined;
+      });
+
+      await validTools.pullChanges().catch(() => {});
+
+      expect(mockGit.stash).toHaveBeenCalledWith(["push", "-u", "-m", "Stashing changes before SDK update"]);
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Your changes are preserved in the stash"));
+      expect(mockExit).toHaveBeenCalledWith(1);
+    });
+
+    it("handles pull failures by restoring changes and providing instructions", async () => {
+      // Mock repository with local changes and pull failure
+      mockGit.status.mockResolvedValue({ isClean: () => false });
+      mockGit.pull.mockRejectedValue(new Error("pull failed"));
+
+      await validTools.pullChanges().catch(() => {});
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Could not update to the latest SDK version"));
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("To update manually:"));
+      expect(mockExit).toHaveBeenCalledWith(1);
+    });
+  });
+
+  describe("file watching", () => {
+    it("starts watching files when specified", async () => {
+      const tools = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+        openApiFile: "/test/openapi.json",
+        stainlessConfigFile: "/test/stainless-tools.json",
+      });
+
+      mockGit.log.mockResolvedValue({ latest: { hash: "abc123" } });
+      await tools.clone();
+
+      expect(mockWatch).toHaveBeenCalledWith(
+        ["/test/openapi.json", "/test/stainless-tools.json"],
+        expect.any(Object),
+      );
+      expect(mockWatch.mock.results[0].value.on).toHaveBeenCalledWith("change", expect.any(Function));
+    });
+
+    it("does not start watching when no files specified", async () => {
+      const tools = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+      });
+
+      mockGit.log.mockResolvedValue({ latest: { hash: "abc123" } });
+      await tools.clone();
+
+      expect(mockWatch).not.toHaveBeenCalled();
+    });
+
+    it("publishes files when changes detected", async () => {
+      const tools = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+        openApiFile: "/test/openapi.json",
+        stainlessConfigFile: "/test/stainless-tools.json",
+      });
+
+      mockGit.log.mockResolvedValue({ latest: { hash: "abc123" } });
+      await tools.clone();
+
+      // Get the change handler
+      const mockWatcher = mockWatch.mock.results[0].value;
+      const [[, changeHandler]] = mockWatcher.on.mock.calls;
+
+      // Simulate a file change
+      await changeHandler("/test/openapi.json");
+
+      // Verify StainlessApi publish was called
+      expect(mockPublish).toHaveBeenCalledWith({
+        spec: expect.any(Buffer),
+        config: expect.any(Buffer),
+        branch: "main",
+      });
+    });
+
+    it("stops watching files on cleanup", async () => {
+      const tools = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+        openApiFile: "/test/openapi.json",
+        stainlessConfigFile: "/test/stainless-tools.json",
+      });
+
+      mockGit.log.mockResolvedValue({ latest: { hash: "abc123" } });
+      await tools.clone();
+
+      tools.cleanup();
+
+      const mockWatcher = mockWatch.mock.results[0].value;
+      expect(mockWatcher.close).toHaveBeenCalled();
+    });
+  });
+}); 
