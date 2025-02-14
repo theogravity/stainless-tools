@@ -6,6 +6,23 @@
 
 A TypeScript library and CLI tool for managing [Stainless](https://www.stainless.com/) config and generated SDKs. This tool helps you generate, monitor, and sync SDK repositories as you update your OpenAPI / Stainless config files.
 
+## Table of Contents
+
+- [Features](#features)
+- [About this project](#about-this-project)
+- [Installation](#installation)
+- [Staging vs Production Repositories](#staging-vs-production-repositories)
+  - [Prerequisites](#prerequisites)
+    - [Environment Setup](#environment-setup)
+- [Configuration](#configuration)
+  - [Configuration Schema](#configuration-schema)
+  - [Target Directory Templates](#target-directory-templates)
+  - [Example Configuration](#example-configuration)
+- [Generate Command](#generate-command)
+  - [Usage](#usage)
+  - [Staging vs Production Repositories](#staging-vs-production-repositories-1)
+  - [How It Works](#how-it-works)
+
 ## Features
 
 - 🔄 Clone and monitor SDK repositories for changes
@@ -90,7 +107,7 @@ export STAINLESS_SDK_BRANCH=your_branch_name # Optional: the git branch name to 
 
 The `STAINLESS_SDK_BRANCH` environment variable is optional and can be used to override the branch name specified in the configuration file or command line options.
 
-### Configuration
+## Configuration
 
 The tool uses [cosmiconfig](https://github.com/davidtheclark/cosmiconfig) for configuration management. You can define your configuration in any of these ways:
 
@@ -99,7 +116,7 @@ The tool uses [cosmiconfig](https://github.com/davidtheclark/cosmiconfig) for co
 - A `.stainless-toolsrc.json`, `.stainless-toolsrc.yaml`, `.stainless-toolsrc.yml`, `.stainless-toolsrc.js`, or `.stainless-toolsrc.cjs` file
 - A `stainless-tools.config.js` or `stainless-tools.config.cjs` CommonJS module
 
-#### Configuration Schema
+### Configuration Schema
 
 ```typescript
 interface StainlessConfig {
@@ -121,7 +138,10 @@ interface StainlessConfig {
     // See: https://app.stainlessapi.com/docs/guides/branches
     branch?: string;
 
-    // Default target directory for generated SDKs (can use {sdk} placeholder; required if not using cli flag) 
+    // Default target directory for generated SDKs. Supports the following template variables:
+    // - {sdk}: The name of the SDK being generated
+    // - {env}: The environment (staging/prod) being used
+    // - {branch}: The git branch name
     targetDir?: string;
 
     // OpenAPI specification file path (required if not using cli flag)
@@ -139,7 +159,32 @@ interface StainlessConfig {
 }
 ```
 
-#### Example Configuration
+### Target Directory Templates
+
+The `targetDir` configuration supports template variables that are dynamically replaced when generating SDKs:
+
+- `{sdk}`: Replaced with the name of the SDK being generated
+- `{env}`: Replaced with the current environment (`staging` or `prod`)
+- `{branch}`: Replaced with the git branch name (forward slashes are converted to hyphens for filesystem compatibility)
+
+This allows you to organize your SDKs in a structured way. For example:
+
+```javascript
+{
+  defaults: {
+    targetDir: './sdks/{env}/{sdk}/{branch}'
+  }
+}
+```
+
+Would generate directories like:
+- `./sdks/staging/typescript/main`
+- `./sdks/prod/typescript/main`
+- `./sdks/staging/python/theogravity-dev` (from branch `theogravity/dev`)
+
+This is particularly useful when working with multiple SDKs, environments, and branches simultaneously. Note that forward slashes in branch names are automatically converted to hyphens to ensure filesystem compatibility across different platforms.
+
+### Example Configuration
 
 ```javascript
 // stainless-tools.config.js
@@ -154,7 +199,8 @@ module.exports = {
   },
   defaults: {
     branch: 'main',
-    targetDir: './sdks/{sdk}',
+    // Organize SDKs by environment, name, and branch
+    targetDir: './sdks/{env}/{sdk}/{branch}',
     openApiFile: './specs/openapi.yml',
     stainlessConfigFile: './stainless-tools.config.yml',
     projectName: 'my-project',

@@ -21,6 +21,7 @@ interface StainlessToolsOptions {
     guessConfig?: boolean;
   };
   sdkName?: string;
+  env?: string;  // The environment (e.g. "staging" or "prod")
 }
 
 /**
@@ -48,15 +49,29 @@ export class StainlessTools {
   }
 
   /**
-   * Gets the actual target directory path, replacing {sdk} with the SDK name if provided.
+   * Gets the actual target directory path, replacing template variables:
+   * - {sdk}: The SDK name if provided
+   * - {env}: The environment (staging/prod) if provided
+   * - {branch}: The git branch name (forward slashes converted to hyphens)
    * @private
    * @returns The resolved target directory path
    */
   private getTargetDir(): string {
+    let targetDir = this.options.targetDir;
+    
     if (this.options.sdkName) {
-      return this.options.targetDir.replace("{sdk}", this.options.sdkName);
+      targetDir = targetDir.replace("{sdk}", this.options.sdkName);
     }
-    return this.options.targetDir;
+    
+    if (this.options.env) {
+      targetDir = targetDir.replace("{env}", this.options.env);
+    }
+    
+    // Convert forward slashes in branch name to hyphens for filesystem compatibility
+    const safeBranchName = this.options.branch.replace(/\//g, "-");
+    targetDir = targetDir.replace("{branch}", safeBranchName);
+    
+    return targetDir;
   }
 
   /**

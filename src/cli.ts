@@ -8,7 +8,6 @@
 
 import "dotenv/config";
 import * as path from "node:path";
-import chalk from "chalk";
 import { Command } from "commander";
 import ora from "ora";
 import { loadConfig } from "./config.js";
@@ -161,6 +160,7 @@ export async function generateAction(sdkName: string, options: GenerateOptions):
         projectName,
         guessConfig: options["guess-config"] || config.defaults?.guessConfig,
       },
+      env: mode,
     });
 
     spinner.succeed(`SDK "${sdkName}" is ready and watching for changes`);

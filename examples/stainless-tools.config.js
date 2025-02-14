@@ -30,8 +30,11 @@ module.exports = {
     // See: https://app.stainlessapi.com/docs/guides/branches
     branch: 'main',
 
-    // Default target directory pattern (can use {sdk} placeholder)
-    targetDir: './sdks/{sdk}',
+    // Default target directory pattern (can use {sdk}, {env}, and {branch} placeholders)
+    // - {sdk}: The name of the SDK being generated
+    // - {env}: The environment (staging/prod) being used
+    // - {branch}: The git branch name
+    targetDir: './sdks/{env}/{sdk}/{branch}',
 
     // Default OpenAPI specification file location
     openApiFile: './specs/openapi.yml',

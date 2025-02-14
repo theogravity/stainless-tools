@@ -9,35 +9,7 @@ import { generateAndWatchSDK } from "../lib";
 
 // Mock dependencies
 vi.mock("../config");
-vi.mock("../lib", () => ({
-  generateAndWatchSDK: vi.fn().mockImplementation(async (options) => {
-    // Mock successful implementation that returns a cleanup function
-    const cleanup = async () => {
-      // Mock cleanup implementation
-      return Promise.resolve();
-    };
-    return Promise.resolve(cleanup);
-  }),
-}));
-vi.mock("chalk", () => ({
-  default: {
-    blue: vi.fn((text) => text),
-    green: vi.fn((text) => text),
-    red: vi.fn((text) => `\u001b[31m${text}\u001b[39m`),
-    yellow: vi.fn((text) => text),
-  },
-}));
-
-const mockSpinner = {
-  start: vi.fn(() => mockSpinner),
-  succeed: vi.fn(() => mockSpinner),
-  fail: vi.fn(() => mockSpinner),
-  stop: vi.fn(() => mockSpinner),
-};
-
-vi.mock("ora", () => ({
-  default: vi.fn(() => mockSpinner),
-}));
+vi.mock("../lib");
 
 // Create a mock process using EventEmitter
 class MockProcess extends EventEmitter {
@@ -45,6 +17,7 @@ class MockProcess extends EventEmitter {
   on: any;
   off: any;
   exit: any;
+  env: Record<string, string>;
   constructor() {
     super();
     this.cwd = vi.fn(() => "/mock/test/dir");
@@ -57,10 +30,11 @@ class MockProcess extends EventEmitter {
       return super.off(event, handler);
     });
     this.exit = vi.fn();
+    this.env = {};
   }
 }
 
-const mockProcess = new MockProcess() as any;
+const mockProcess = new MockProcess();
 const realProcess = process;
 
 // Mock process.cwd and event handlers
@@ -69,6 +43,17 @@ vi.stubGlobal("process", {
   ...mockProcess,
   exit: mockProcess.exit,
 });
+
+const mockSpinner = {
+  start: vi.fn(() => mockSpinner),
+  succeed: vi.fn(() => mockSpinner),
+  fail: vi.fn(() => mockSpinner),
+  stop: vi.fn(() => mockSpinner),
+};
+
+vi.mock("ora", () => ({
+  default: vi.fn(() => mockSpinner),
+}));
 
 // Mock path.resolve to use our mock directory
 vi.mock("node:path", async () => {

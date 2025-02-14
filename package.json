@@ -47,7 +47,6 @@
     "stainless-tools": "pnpm run build && node dist/cli.js"
   },
   "dependencies": {
-    "chalk": "5.4.1",
     "chokidar": "4.0.3",
     "commander": "13.1.0",
     "cosmiconfig": "9.0.0",
