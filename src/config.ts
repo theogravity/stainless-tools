@@ -6,6 +6,7 @@ import { z } from "zod";
 config({
   quiet: true,
   path: [".env", ".env.override"],
+  ignore: ['MISSING_ENV_FILE']
 });
 
 const gitUrlSchema = z.string().refine(isValidGitUrl, "Invalid git URL");
@@ -30,7 +31,7 @@ export const configSchema = z.object({
 export type StainlessConfig = z.infer<typeof configSchema>;
 
 export const loadConfig = async (configPath?: string) => {
-  const explorer = cosmiconfig("stainless");
+  const explorer = cosmiconfig("stainless-tools");
   const result = configPath ? await explorer.load(configPath) : await explorer.search();
 
   if (!result) {

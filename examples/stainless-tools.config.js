@@ -1,8 +1,8 @@
 /**
  * Example Stainless Tools configuration file
  * This file can be named:
- * - stainless.config.js
- * - .stainlessrc.js
+ * - stainless-tools.config.js
+ * - .stainless-toolsrc.js
  * - Or any other format supported by cosmiconfig
  */
 
@@ -34,9 +34,11 @@ module.exports = {
     openApiFile: './specs/openapi.yml',
 
     // Default Stainless configuration file
-    stainlessConfigFile: './stainless.config.yml',
+    stainlessConfigFile: './stainless-tools.config.yml',
 
     // Whether to use the "Guess with AI" command from the Stainless Studio for the Stainless Config
-    guessConfig: false
+    guessConfig: false,
+
+    projectName: 'my-project'
   }
 }; 

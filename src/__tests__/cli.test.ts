@@ -109,7 +109,7 @@ describe("CLI", () => {
     mock({
       "/mock/test/dir": {
         "test-api.json": '{"openapi": "3.0.0"}',
-        "stainless.config.json": '{"config": true}',
+        "stainless-tools.config.json": '{"config": true}',
         specs: {
           "openapi.json": '{"openapi": "3.0.0"}',
         },
@@ -144,7 +144,7 @@ describe("CLI", () => {
           branch: "main",
           targetDir: "./sdks/{sdk}",
           openApiFile: "./specs/openapi.json",
-          stainlessConfigFile: "./stainless.config.json",
+          stainlessConfigFile: "./stainless-tools.config.json",
           projectName: "test-project",
           guessConfig: true,
         },
@@ -167,7 +167,7 @@ describe("CLI", () => {
           branch: "main",
           targetDir: "/mock/test/dir/sdks/{sdk}",
           openApiFile: "/mock/test/dir/specs/openapi.json",
-          stainlessConfigFile: "/mock/test/dir/stainless.config.json",
+          stainlessConfigFile: "/mock/test/dir/stainless-tools.config.json",
           spinner: expect.any(Object),
           stainlessApiOptions: {
             projectName: "test-project",
@@ -186,7 +186,7 @@ describe("CLI", () => {
           branch: "main",
           targetDir: "./sdks/{sdk}",
           openApiFile: "./specs/openapi.json",
-          stainlessConfigFile: "./stainless.config.json",
+          stainlessConfigFile: "./stainless-tools.config.json",
           projectName: "test-project",
           guessConfig: true,
         },
@@ -209,7 +209,7 @@ describe("CLI", () => {
           branch: "main",
           targetDir: "/mock/test/dir/sdks/{sdk}",
           openApiFile: "/mock/test/dir/specs/openapi.json",
-          stainlessConfigFile: "/mock/test/dir/stainless.config.json",
+          stainlessConfigFile: "/mock/test/dir/stainless-tools.config.json",
           spinner: expect.any(Object),
           stainlessApiOptions: {
             projectName: "test-project",
@@ -282,7 +282,7 @@ describe("CLI", () => {
         defaults: {
           targetDir: "./sdks/test-sdk",
           openApiFile: "./specs/openapi.json",
-          stainlessConfigFile: "./stainless.config.json",
+          stainlessConfigFile: "./stainless-tools.config.json",
           projectName: "test-project",
           guessConfig: true,
         },
@@ -309,7 +309,7 @@ describe("CLI", () => {
           branch: "env-branch",
           targetDir: "/mock/test/dir/sdks/test-sdk",
           openApiFile: "/mock/test/dir/specs/openapi.json",
-          stainlessConfigFile: "/mock/test/dir/stainless.config.json",
+          stainlessConfigFile: "/mock/test/dir/stainless-tools.config.json",
           spinner: expect.any(Object),
           stainlessApiOptions: {
             projectName: "test-project",
@@ -335,7 +335,7 @@ describe("CLI", () => {
         defaults: {
           targetDir: "./sdks/test-sdk",
           openApiFile: "./specs/openapi.json",
-          stainlessConfigFile: "./stainless.config.json",
+          stainlessConfigFile: "./stainless-tools.config.json",
           projectName: "test-project",
           guessConfig: true,
         },
@@ -363,7 +363,7 @@ describe("CLI", () => {
           branch: "cli-branch",
           targetDir: "/mock/test/dir/sdks/test-sdk",
           openApiFile: "/mock/test/dir/specs/openapi.json",
-          stainlessConfigFile: "/mock/test/dir/stainless.config.json",
+          stainlessConfigFile: "/mock/test/dir/stainless-tools.config.json",
           spinner: expect.any(Object),
           stainlessApiOptions: {
             projectName: "test-project",
