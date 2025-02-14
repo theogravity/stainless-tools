@@ -1,24 +1,49 @@
 import { StainlessError } from "./StainlessError.js";
 
+/**
+ * Interface defining the configuration options for the StainlessApi client
+ */
 interface StainlessApiOptions {
+  /** Optional API key for authentication. Can be provided here or via STAINLESS_API_KEY environment variable */
   apiKey?: string;
+  /** Optional base URL for the API. Defaults to https://api.stainlessapi.com */
   baseUrl?: string;
+  /** Optional project name to associate with API calls */
   projectName?: string;
+  /** Optional flag to enable automatic configuration guessing */
   guessConfig?: boolean;
 }
 
+/**
+ * Interface defining the options for publishing OpenAPI specifications
+ */
 interface PublishOptions {
+  /** OpenAPI specification content as a string or Buffer */
   spec: string | Buffer;
+  /** Optional Stainless configuration content as a string or Buffer */
   config?: string | Buffer;
+  /** Optional branch name to associate with the publication */
   branch?: string;
+  /** Optional project name to associate with the publication */
   projectName?: string;
+  /** Optional flag to enable automatic configuration guessing */
   guessConfig?: boolean;
 }
 
+/**
+ * StainlessApi client for interacting with the Stainless API service.
+ * This class provides methods to publish OpenAPI specifications and configurations
+ * to the Stainless platform.
+ */
 export class StainlessApi {
   private apiKey: string;
   private baseUrl: string;
 
+  /**
+   * Creates a new instance of the StainlessApi client
+   * @param options - Configuration options for the API client
+   * @throws {StainlessError} If no API key is provided via options or environment variable
+   */
   constructor(options: StainlessApiOptions = {}) {
     this.apiKey = options.apiKey || process.env.STAINLESS_API_KEY || "";
     this.baseUrl = options.baseUrl || "https://api.stainlessapi.com";
@@ -31,14 +56,17 @@ export class StainlessApi {
   }
 
   /**
-   * Publishes OpenAPI specification and optional Stainless configuration to the API
+   * Publishes an OpenAPI specification and optional Stainless configuration to the API.
+   * This method handles the upload of specification files and associated metadata to the Stainless platform.
+   * 
    * @param options - Options for publishing
-   * @param options.spec - Optional OpenAPI specification content
-   * @param options.config - Optional Stainless configuration content
-   * @param options.branch - Optional branch name
-   * @param options.projectName - Optional project name
-   * @param options.guessConfig - Optional flag to guess config
+   * @param options.spec - OpenAPI specification content as a string or Buffer
+   * @param options.config - Optional Stainless configuration content as a string or Buffer
+   * @param options.branch - Optional branch name to associate with the publication
+   * @param options.projectName - Optional project name to associate with the publication
+   * @param options.guessConfig - Optional flag to enable automatic configuration guessing
    * @returns Promise that resolves when the upload is complete
+   * @throws {StainlessError} If the spec is missing or if there's an error during upload
    */
   async publish(options: PublishOptions): Promise<void> {
     try {

@@ -1,21 +1,8 @@
 import { cosmiconfig } from "cosmiconfig";
+import { isValidGitUrl } from "./utils";
 import { z } from "zod";
 
-const gitUrlSchema = z.string().refine((val) => {
-  try {
-    // Handle both HTTPS and SSH git URLs
-    if (val.startsWith("git@")) {
-      // SSH format validation
-      return /^git@[a-zA-Z0-9.-]+:[a-zA-Z0-9/-]+\.git$/.test(val);
-    }
-
-    // HTTPS format validation
-    new URL(val);
-    return val.endsWith(".git");
-  } catch {
-    return false;
-  }
-}, "Invalid git URL");
+const gitUrlSchema = z.string().refine(isValidGitUrl, "Invalid git URL");
 
 export const configSchema = z.object({
   // Required fields

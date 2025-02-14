@@ -10,8 +10,12 @@ import { generateAndWatchSDK } from "../lib";
 // Mock dependencies
 vi.mock("../config");
 vi.mock("../lib", () => ({
-  generateAndWatchSDK: vi.fn().mockImplementation(() => {
-    const cleanup = async () => {};
+  generateAndWatchSDK: vi.fn().mockImplementation(async (options) => {
+    // Mock successful implementation that returns a cleanup function
+    const cleanup = async () => {
+      // Mock cleanup implementation
+      return Promise.resolve();
+    };
     return Promise.resolve(cleanup);
   }),
 }));
@@ -100,7 +104,7 @@ describe("CLI", () => {
     mockProcess.cwd.mockReturnValue("/mock/test/dir");
     consoleOutput = [];
 
-    // Setup mock filesystem with root directory
+    // Setup mock filesystem with all necessary files and directories
     mock.restore(); // Ensure clean state
     mock({
       "/mock/test/dir": {
@@ -109,13 +113,20 @@ describe("CLI", () => {
         specs: {
           "openapi.json": '{"openapi": "3.0.0"}',
         },
-        sdks: {},
+        sdks: {
+          "test-sdk": {
+            ".git": {}, // Mock .git directory to simulate a git repository
+            "package.json": '{"name": "test-sdk"}',
+          },
+        },
+        node_modules: {}, // Mock node_modules directory
       },
     });
   });
 
   afterEach(() => {
     mock.restore();
+    vi.clearAllMocks();
   });
 
   afterAll(() => {
@@ -259,6 +270,113 @@ describe("CLI", () => {
       expect(consoleOutput.some((line) => line.includes("https://github.com/other/repo.git"))).toBe(true);
       expect(consoleOutput.some((line) => line.includes("test-sdk-repo"))).toBe(true);
       expect(consoleOutput.some((line) => line.includes("remove the directory manually"))).toBe(true);
+    });
+
+    it("uses environment variable for branch when CLI and config options not provided", async () => {
+      process.env.STAINLESS_SDK_BRANCH = "env-branch";
+
+      const mockConfig = {
+        stainlessSdkRepos: {
+          "test-sdk": "test-sdk-repo",
+        },
+        defaults: {
+          targetDir: "./sdks/test-sdk",
+          openApiFile: "./specs/openapi.json",
+          stainlessConfigFile: "./stainless.config.json",
+          projectName: "test-project",
+          guessConfig: true,
+        },
+      };
+
+      vi.mocked(loadConfig).mockResolvedValue(mockConfig);
+      vi.mocked(generateAndWatchSDK).mockResolvedValue(async () => {
+        // Mock cleanup function
+        return Promise.resolve();
+      });
+
+      try {
+        const exitCode = await generateAction("test-sdk", {
+          "open-api-file": "./specs/openapi.json",
+          projectName: "test-project",
+          targetDir: "./sdks/test-sdk",
+        });
+
+        expect(exitCode).toBe(0);
+
+        expect(generateAndWatchSDK).toHaveBeenCalledWith({
+          sdkName: "test-sdk",
+          sdkRepo: "test-sdk-repo",
+          branch: "env-branch",
+          targetDir: "/mock/test/dir/sdks/test-sdk",
+          openApiFile: "/mock/test/dir/specs/openapi.json",
+          stainlessConfigFile: "/mock/test/dir/stainless.config.json",
+          spinner: expect.any(Object),
+          stainlessApiOptions: {
+            projectName: "test-project",
+            guessConfig: true,
+          },
+        });
+      } catch (error) {
+        console.error("Test error:", error);
+        throw error;
+      } finally {
+        // Clean up
+        delete process.env.STAINLESS_SDK_BRANCH;
+      }
+    });
+
+    it("prioritizes CLI option over environment variable for branch", async () => {
+      process.env.STAINLESS_SDK_BRANCH = "env-branch";
+
+      const mockConfig = {
+        stainlessSdkRepos: {
+          "test-sdk": "test-sdk-repo",
+        },
+        defaults: {
+          targetDir: "./sdks/test-sdk",
+          openApiFile: "./specs/openapi.json",
+          stainlessConfigFile: "./stainless.config.json",
+          projectName: "test-project",
+          guessConfig: true,
+        },
+      };
+
+      vi.mocked(loadConfig).mockResolvedValue(mockConfig);
+      vi.mocked(generateAndWatchSDK).mockResolvedValue(async () => {
+        // Mock cleanup function
+        return Promise.resolve();
+      });
+
+      try {
+        const exitCode = await generateAction("test-sdk", {
+          branch: "cli-branch",
+          "open-api-file": "./specs/openapi.json",
+          projectName: "test-project",
+          targetDir: "./sdks/test-sdk",
+        });
+   
+        expect(exitCode).toBe(0);
+
+        expect(generateAndWatchSDK).toHaveBeenCalledWith({
+          sdkName: "test-sdk",
+          sdkRepo: "test-sdk-repo",
+          branch: "cli-branch",
+          targetDir: "/mock/test/dir/sdks/test-sdk",
+          openApiFile: "/mock/test/dir/specs/openapi.json",
+          stainlessConfigFile: "/mock/test/dir/stainless.config.json",
+          spinner: expect.any(Object),
+          stainlessApiOptions: {
+            projectName: "test-project",
+            guessConfig: true,
+          },
+        });
+      } catch (error) {
+        console.error("Test error:", error);
+        throw error;
+      } finally {
+        // Clean up
+        delete process.env.STAINLESS_SDK_BRANCH;
+      }
     });
   });
 });
