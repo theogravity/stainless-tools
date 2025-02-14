@@ -21,7 +21,11 @@ A TypeScript library and CLI tool for managing [Stainless](https://www.stainless
 
 This project was entirely built using [Cursor](https://www.cursor.com/). It took an entire day with careful prompting to cover various use-cases and write the appropriate tests and documentation. No human wrote any part of the `src` code, although the README has been hand-polished.
 
+It has only been tested on MacOS under Node 22 (although built for 18). Other platforms may not be supported.
+
 ## Installation
+
+You must have at least Node 18 installed to use this tool.
 
 ```bash
 npm install stainless-tools -g
@@ -47,8 +51,6 @@ STAINLESS_API_KEY=your_api_key_here
 ```bash
 export STAINLESS_API_KEY=your_api_key_here
 ```
-
-The API key is required when using `--open-api-file` or `--stainless-config-file` options, as these features interact with the Stainless API.
 
 ### Configuration
 
