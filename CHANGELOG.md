@@ -1,5 +1,13 @@
 # stainless-tools changelog
 
+## 1.1.0
+
+### Minor Changes
+
+- [#5](https://github.com/theogravity/stainless-tools/pull/5) [`a29fcf8`](https://github.com/theogravity/stainless-tools/commit/a29fcf8ee30a24d10ba87a5dbcf23c00e32787ef) Thanks [@theogravity](https://github.com/theogravity)! - - Add the `STAINLESS_SDK_BRANCH` as an alternative to the config or `--branch` option
+  - Consolidate redundant code around Git URI validation
+  - Add more code comments for clarity
+
 ## 1.0.1
 
 ### Patch Changes
