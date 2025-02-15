@@ -87,7 +87,7 @@ describe("StainlessTools", () => {
       "/test": {},
       "/test/target-dir": {},
       "/test/openapi.json": '{"openapi": "3.0.0"}',
-      "/test/stainless-tools.json": '{"name": "test-api"}'
+      "/test/stainless-tools.json": '{"name": "test-api"}',
     });
   });
 
@@ -298,7 +298,9 @@ describe("StainlessTools", () => {
       });
 
       mockGit.revparse.mockResolvedValue("/test/target-dir/.git");
-      mockGit.getRemotes.mockResolvedValue([{ name: "origin", refs: { fetch: "ssh://git@ssh.github.com:443/org/repo.git" } }]);
+      mockGit.getRemotes.mockResolvedValue([
+        { name: "origin", refs: { fetch: "ssh://git@ssh.github.com:443/org/repo.git" } },
+      ]);
 
       await sshTools.clone();
 
@@ -517,10 +519,7 @@ describe("StainlessTools", () => {
       mockGit.log.mockResolvedValue({ latest: { hash: "abc123" } });
       await tools.clone();
 
-      expect(mockWatch).toHaveBeenCalledWith(
-        ["/test/openapi.json", "/test/stainless-tools.json"],
-        expect.any(Object),
-      );
+      expect(mockWatch).toHaveBeenCalledWith(["/test/openapi.json", "/test/stainless-tools.json"], expect.any(Object));
       expect(mockWatch.mock.results[0].value.on).toHaveBeenCalledWith("change", expect.any(Function));
     });
 
@@ -655,4 +654,4 @@ describe("StainlessTools", () => {
       expect(tools.getTargetDir()).toBe("./sdks/typescript");
     });
   });
-}); 
+});

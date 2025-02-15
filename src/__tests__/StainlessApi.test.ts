@@ -1,7 +1,7 @@
+import { fail } from "node:assert";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { StainlessApi } from "../StainlessApi";
 import { StainlessError } from "../StainlessError";
-import {fail} from "node:assert";
 
 describe("StainlessApi", () => {
   const API_KEY = "test-api-key";

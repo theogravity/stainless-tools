@@ -23,3 +23,14 @@ biome.json
 build/
 commitlint.config.js
 tsup.config.json
+lefthook.yml
+setup-vitest.ts
+syncpack.config.js
+.turbo/
+.github/
+examples/
+turbo.json
+vitest.config.ts
+.changeset/
+.env
+.env.example

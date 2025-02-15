@@ -57,18 +57,18 @@ interface GetTargetDirOptions {
  */
 export function getTargetDir(options: GetTargetDirOptions): string {
   let targetDir = options.targetDir;
-  
+
   if (options.sdkName) {
     targetDir = targetDir.replace("{sdk}", options.sdkName);
   }
-  
+
   if (options.env) {
     targetDir = targetDir.replace("{env}", options.env);
   }
-  
+
   // Convert forward slashes in branch name to hyphens for filesystem compatibility
   const safeBranchName = options.branch.replace(/\//g, "-");
   targetDir = targetDir.replace("{branch}", safeBranchName);
-  
+
   return targetDir;
 }

@@ -58,7 +58,7 @@ export class StainlessApi {
   /**
    * Publishes an OpenAPI specification and optional Stainless configuration to the API.
    * This method handles the upload of specification files and associated metadata to the Stainless platform.
-   * 
+   *
    * @param options - Options for publishing
    * @param options.spec - OpenAPI specification content as a string or Buffer
    * @param options.config - Optional Stainless configuration content as a string or Buffer
