@@ -17,7 +17,7 @@ A TypeScript library and CLI tool for managing [Stainless](https://www.stainless
   - [Example Configuration](#example-configuration)
 - [Generate Command](#generate-command)
   - [Usage](#usage)
-  - [Staging vs Production Repositories](#staging-vs-production-repositories)
+  - [Branch Configuration and Environments](#branch-configuration-and-environments)
   - [How It Works](#how-it-works)
 
 ## Features
@@ -59,16 +59,12 @@ Before using the tool, you need to set up your environment variables. You can do
 1. Create a `.env` file (or `.env.override` if you auto-generate your `.env` file) in your project root:
 ```bash
 STAINLESS_API_KEY=your_api_key_here
-STAINLESS_SDK_BRANCH=your_branch_name # Optional: Override the branch name
 ```
 
 2. Or export them in your shell:
 ```bash
 export STAINLESS_API_KEY=your_api_key_here
-export STAINLESS_SDK_BRANCH=your_branch_name # Optional: the git branch name to check out for the SDK repo
 ```
-
-The `STAINLESS_SDK_BRANCH` environment variable is optional and can be used to override the branch name specified in the configuration file or command line options.
 
 ## Configuration
 
@@ -198,13 +194,15 @@ Options:
 ### Examples
 
 ```bash
-# Using staging URL (default)
+# Using staging URL (default) with config file fully defined
 stainless-tools generate typescript
 
-# Using production URL
-stainless-tools generate --prod typescript
+# Using production URL (typically with main branch)
+stainless-tools generate typescript \
+  --prod \
+  --branch main
 
-# Minimal required options (when no config file)
+# Minimal required options (when no defaults defined in config file)
 stainless-tools generate \
   --branch yourusername/dev \
   --open-api-file ./api-spec.json \
@@ -223,34 +221,41 @@ stainless-tools generate \
   typescript
 ```
 
-### Staging vs Production Repositories
+### Branch Configuration and Environments
 
-Each SDK can have two repository URLs:
-- `staging`: Used for development and testing
-- `prod`: Used for production releases
+Each SDK supports two environments with separate repositories:
+- `staging`: For development and testing, typically using `yourusername/dev` branch
+- `prod`: For production releases, typically using `main` branch
 
-By default, the tool uses the `staging` URL. To use the production URL, add the `--prod` flag:
+The branch name must be specified through one of these methods (in order of precedence):
+1. Command line: `--branch yourusername/dev`
+2. Environment: `STAINLESS_SDK_BRANCH=yourusername/dev`
+3. Config defaults: `defaults.branch` in your config file
 
-```bash
-# Uses staging URL
-stainless-tools generate typescript
-
-# Uses production URL
-stainless-tools generate --prod typescript
-```
-
-For example:
-```javascript
+Example configuration:
+```json5
 {
   "stainlessSdkRepos": {
     "typescript": {
-      // Staging repo
       "staging": "git@github.com:stainless-sdks/my-api-typescript.git",
-      // Production repo
       "prod": "git@github.com:my-org/my-api-typescript.git"
     }
+  },
+  "defaults": {
+    "branch": "yourusername/dev"  // Default branch if not specified via CLI or env
   }
 }
+```
+
+Basic usage:
+```bash
+# Development: Uses staging URL (default)
+stainless-tools generate typescript
+
+# Production: Uses prod URL with main branch
+stainless-tools generate typescript \
+  --prod \
+  --branch main
 ```
 
 ### How It Works
