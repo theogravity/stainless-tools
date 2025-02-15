@@ -6,26 +6,32 @@
  * using the Stainless platform.
  */
 
-import "dotenv/config";
 import * as path from "node:path";
+import { config } from "@dotenvx/dotenvx";
 import { Command } from "commander";
 import ora from "ora";
 import { loadConfig } from "./config.js";
 import { generateAndWatchSDK } from "./lib.js";
 import { getTargetDir } from "./utils.js";
 
+config({
+  quiet: true,
+  path: [".env", ".env.override"],
+  ignore: ["MISSING_ENV_FILE"],
+});
+
 /**
  * Interface defining the options available for SDK generation
  */
 interface GenerateOptions {
-  branch?: string;              // Git branch to use
-  targetDir?: string;          // Directory where the SDK will be generated
-  "open-api-file"?: string;    // Path to OpenAPI specification file
-  config?: string;             // Path to configuration file
-  "stainless-config-file"?: string;  // Path to Stainless-specific configuration
-  projectName?: string;        // Name of the project in Stainless
-  "guess-config"?: boolean;    // Whether to use AI to guess configuration
-  prod?: boolean;              // Whether to use production URLs
+  branch?: string; // Git branch to use
+  targetDir?: string; // Directory where the SDK will be generated
+  "open-api-file"?: string; // Path to OpenAPI specification file
+  config?: string; // Path to configuration file
+  "stainless-config-file"?: string; // Path to Stainless-specific configuration
+  projectName?: string; // Name of the project in Stainless
+  "guess-config"?: boolean; // Whether to use AI to guess configuration
+  prod?: boolean; // Whether to use production URLs
 }
 
 // Initialize the command-line program
@@ -75,18 +81,20 @@ export async function generateAction(sdkName: string, options: GenerateOptions):
 
     const mode = options.prod ? "prod" : "staging";
     const sdkRepo = sdkConfig[mode];
-    
+
     if (!sdkRepo) {
       throw new Error(
         `${mode === "prod" ? "Production" : "Staging"} URL not defined for SDK "${sdkName}". ` +
-        `Please add a "${mode}" URL to the configuration.`
+          `Please add a "${mode}" URL to the configuration.`,
       );
     }
 
     // Determine branch to use
     const branch = options.branch || process.env.STAINLESS_SDK_BRANCH || config.defaults?.branch;
     if (!branch) {
-      throw new Error("Branch name is required. Provide it via --branch option, STAINLESS_SDK_BRANCH environment variable, or in the configuration defaults.");
+      throw new Error(
+        "Branch name is required. Provide it via --branch option, STAINLESS_SDK_BRANCH environment variable, or in the configuration defaults.",
+      );
     }
 
     // Resolve target directory path

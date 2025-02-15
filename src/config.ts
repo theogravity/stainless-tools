@@ -1,23 +1,18 @@
-import { config } from "@dotenvx/dotenvx";
 import { cosmiconfig } from "cosmiconfig";
-import { isValidGitUrl } from "./utils.js";
 import { z } from "zod";
-
-config({
-  quiet: true,
-  path: [".env", ".env.override"],
-  ignore: ['MISSING_ENV_FILE']
-});
+import { isValidGitUrl } from "./utils.js";
 
 const gitUrlSchema = z.string().refine(isValidGitUrl, "Invalid git URL");
 
-const repoConfigSchema = z.object({
-  staging: gitUrlSchema.optional(),
-  prod: gitUrlSchema.optional(),
-}).refine(
-  (data) => data.staging !== undefined || data.prod !== undefined,
-  "At least one of staging or prod must be defined"
-);
+const repoConfigSchema = z
+  .object({
+    staging: gitUrlSchema.optional(),
+    prod: gitUrlSchema.optional(),
+  })
+  .refine(
+    (data) => data.staging !== undefined || data.prod !== undefined,
+    "At least one of staging or prod must be defined",
+  );
 
 export const configSchema = z.object({
   // Required fields

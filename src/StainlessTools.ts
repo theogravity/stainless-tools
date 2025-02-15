@@ -5,7 +5,7 @@ import type { Ora } from "ora";
 import simpleGit, { type SimpleGit } from "simple-git";
 import { StainlessApi } from "./StainlessApi.js";
 import { StainlessError } from "./StainlessError.js";
-import { isValidGitUrl, getTargetDir } from "./utils.js";
+import { getTargetDir, isValidGitUrl } from "./utils.js";
 
 interface StainlessToolsOptions {
   sdkRepo: string;
@@ -21,7 +21,7 @@ interface StainlessToolsOptions {
     guessConfig?: boolean;
   };
   sdkName?: string;
-  env?: string;  // The environment (e.g. "staging" or "prod")
+  env?: string; // The environment (e.g. "staging" or "prod")
 }
 
 /**

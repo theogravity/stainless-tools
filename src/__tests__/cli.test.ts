@@ -2,7 +2,6 @@ import { EventEmitter } from "node:events";
 import type * as path from "node:path";
 import mock from "mock-fs";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { StainlessError } from "../StainlessError";
 import { generateAction } from "../cli";
 import { loadConfig } from "../config";
 import { generateAndWatchSDK } from "../lib";
@@ -257,7 +256,7 @@ describe("CLI", () => {
       });
 
       // Get the SIGINT handler that was registered
-      const sigintHandler = mockProcess.on.mock.calls.find(call => call[0] === "SIGINT")?.[1];
+      const sigintHandler = mockProcess.on.mock.calls.find((call) => call[0] === "SIGINT")?.[1];
       if (!sigintHandler) {
         throw new Error("SIGINT handler not found");
       }
@@ -313,7 +312,7 @@ describe("CLI", () => {
         ...mockConfig,
         defaults: {
           ...mockConfig.defaults,
-          branch: undefined,  // Remove default branch
+          branch: undefined, // Remove default branch
         },
       };
       vi.mocked(loadConfig).mockResolvedValue(configWithoutBranch);
@@ -326,7 +325,7 @@ describe("CLI", () => {
       expect(generateAndWatchSDK).not.toHaveBeenCalled();
       expect(exitCode).toBe(1);
       expect(mockSpinner.fail).toHaveBeenCalledWith(
-        "Branch name is required. Provide it via --branch option, STAINLESS_SDK_BRANCH environment variable, or in the configuration defaults."
+        "Branch name is required. Provide it via --branch option, STAINLESS_SDK_BRANCH environment variable, or in the configuration defaults.",
       );
     });
 
@@ -347,7 +346,7 @@ describe("CLI", () => {
 
     it("uses branch from environment variable", async () => {
       process.env.STAINLESS_SDK_BRANCH = "env/test";
-      
+
       const exitCode = await generateAction("typescript", {
         "open-api-file": "./specs/openapi.json",
         projectName: "test-project",
@@ -435,7 +434,7 @@ describe("CLI", () => {
 
     it("uses staging URL by default", async () => {
       process.env.STAINLESS_SDK_BRANCH = "test/branch"; // Add branch via env var
-      
+
       const exitCode = await generateAction("typescript", {
         "open-api-file": "./specs/openapi.json",
         projectName: "test-project",
@@ -452,7 +451,7 @@ describe("CLI", () => {
 
     it("uses production URL when prod flag is set", async () => {
       process.env.STAINLESS_SDK_BRANCH = "test/branch"; // Add branch via env var
-      
+
       const exitCode = await generateAction("typescript", {
         "open-api-file": "./specs/openapi.json",
         projectName: "test-project",

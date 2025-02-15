@@ -51,4 +51,4 @@ describe("isValidGitUrl", () => {
       expect(isValidGitUrl("https://")).toBe(false);
     });
   });
-}); 
+});

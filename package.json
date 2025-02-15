@@ -2,21 +2,9 @@
   "name": "stainless-tools",
   "description": "Tools for use with the Stainless SDK service",
   "version": "3.1.1",
-  "main": "dist/index.js",
+  "main": "./dist/index.js",
   "bin": {
     "stainless-tools": "./dist/cli.js"
-  },
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
-    },
-    "./cli": {
-      "types": "./dist/cli.d.ts",
-      "import": "./dist/cli.mjs",
-      "require": "./dist/cli.js"
-    }
   },
   "types": "dist/index.d.ts",
   "author": "Theo Gravity <theo@suteki.nu>",
@@ -30,7 +18,7 @@
     "codegen"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "rm -rf dist && tsc",
     "changeset": "changeset",
     "clean": "rm -rf node_modules dist",
     "debug": "ts-node-dev --inspect -- src/index.ts",
@@ -68,7 +56,6 @@
     "lefthook": "1.10.10",
     "mock-fs": "5.5.0",
     "syncpack": "13.0.2",
-    "tsup": "8.3.6",
     "turbo": "2.4.2",
     "typescript": "5.7.3",
     "vitest": "3.0.5"
