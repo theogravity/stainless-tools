@@ -1,5 +1,11 @@
 # stainless-tools changelog
 
+## 3.1.1
+
+### Patch Changes
+
+- [`adf2c58`](https://github.com/theogravity/stainless-tools/commit/adf2c58ec2d737feafb2e44fe645c47cbc0218c1) Thanks [@theogravity](https://github.com/theogravity)! - Fix issue where STAINLESS_SDK_BRANCH wasn't prioritized properly
+
 ## 3.1.0
 
 ### Minor Changes
