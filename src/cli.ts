@@ -12,6 +12,7 @@ import { Command } from "commander";
 import ora from "ora";
 import { loadConfig } from "./config.js";
 import { generateAndWatchSDK } from "./lib.js";
+import { getTargetDir } from "./utils.js";
 
 /**
  * Interface defining the options available for SDK generation
@@ -83,7 +84,7 @@ export async function generateAction(sdkName: string, options: GenerateOptions):
     }
 
     // Determine branch to use
-    const branch = options.branch || config.defaults?.branch || "main";
+    const branch = options.branch || process.env.STAINLESS_SDK_BRANCH || config.defaults?.branch;
     if (!branch) {
       throw new Error("Branch name is required. Provide it via --branch option, STAINLESS_SDK_BRANCH environment variable, or in the configuration defaults.");
     }
@@ -137,7 +138,7 @@ export async function generateAction(sdkName: string, options: GenerateOptions):
 
     console.log("\nWatching for changes in the SDK repository...");
     console.log(`Branch: ${branch}`);
-    console.log(`Target directory: ${targetDir}`);
+    console.log(`Target directory: ${getTargetDir({ targetDir, sdkName, env: mode, branch })}`);
     if (openApiFile) {
       console.log(`OpenAPI file: ${openApiFile}`);
     }

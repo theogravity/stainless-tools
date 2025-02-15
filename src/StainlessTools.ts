@@ -5,7 +5,7 @@ import type { Ora } from "ora";
 import simpleGit, { type SimpleGit } from "simple-git";
 import { StainlessApi } from "./StainlessApi.js";
 import { StainlessError } from "./StainlessError.js";
-import { isValidGitUrl } from "./utils.js";
+import { isValidGitUrl, getTargetDir } from "./utils.js";
 
 interface StainlessToolsOptions {
   sdkRepo: string;
@@ -57,21 +57,12 @@ export class StainlessTools {
    * @returns The resolved target directory path
    */
   private getTargetDir(): string {
-    let targetDir = this.options.targetDir;
-    
-    if (this.options.sdkName) {
-      targetDir = targetDir.replace("{sdk}", this.options.sdkName);
-    }
-    
-    if (this.options.env) {
-      targetDir = targetDir.replace("{env}", this.options.env);
-    }
-    
-    // Convert forward slashes in branch name to hyphens for filesystem compatibility
-    const safeBranchName = this.options.branch.replace(/\//g, "-");
-    targetDir = targetDir.replace("{branch}", safeBranchName);
-    
-    return targetDir;
+    return getTargetDir({
+      targetDir: this.options.targetDir,
+      sdkName: this.options.sdkName,
+      env: this.options.env,
+      branch: this.options.branch,
+    });
   }
 
   /**

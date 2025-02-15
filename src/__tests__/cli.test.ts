@@ -89,6 +89,9 @@ describe("CLI", () => {
     mockProcess.cwd.mockReturnValue("/mock/test/dir");
     consoleOutput = [];
 
+    // Add STAINLESS_API_KEY to environment
+    process.env.STAINLESS_API_KEY = "test-api-key";
+
     // Setup mock filesystem with all necessary files and directories
     mock.restore(); // Ensure clean state
     mock({
@@ -287,18 +290,152 @@ describe("CLI", () => {
         },
       },
       defaults: {
-        branch: "main",
         openApiFile: "./specs/openapi.json",
         projectName: "test-project",
+        branch: "main",
+        targetDir: "./sdks/{sdk}",
+        stainlessConfigFile: "./stainless-tools.config.json",
       },
     };
 
     beforeEach(() => {
       vi.resetAllMocks();
       vi.mocked(loadConfig).mockResolvedValue(mockConfig);
+      // Reset process.env before each test
+      process.env = {
+        STAINLESS_API_KEY: "test-api-key",
+      };
+    });
+
+    it("requires branch to be specified via option, env var, or config", async () => {
+      // Use a config without default branch
+      const configWithoutBranch = {
+        ...mockConfig,
+        defaults: {
+          ...mockConfig.defaults,
+          branch: undefined,  // Remove default branch
+        },
+      };
+      vi.mocked(loadConfig).mockResolvedValue(configWithoutBranch);
+
+      const exitCode = await generateAction("typescript", {
+        "open-api-file": "./specs/openapi.json",
+        projectName: "test-project",
+      });
+
+      expect(generateAndWatchSDK).not.toHaveBeenCalled();
+      expect(exitCode).toBe(1);
+      expect(mockSpinner.fail).toHaveBeenCalledWith(
+        "Branch name is required. Provide it via --branch option, STAINLESS_SDK_BRANCH environment variable, or in the configuration defaults."
+      );
+    });
+
+    it("uses branch from command line option", async () => {
+      const exitCode = await generateAction("typescript", {
+        branch: "feature/test",
+        "open-api-file": "./specs/openapi.json",
+        projectName: "test-project",
+      });
+
+      expect(generateAndWatchSDK).toHaveBeenCalledWith(
+        expect.objectContaining({
+          branch: "feature/test",
+        }),
+      );
+      expect(exitCode).toBe(0);
+    });
+
+    it("uses branch from environment variable", async () => {
+      process.env.STAINLESS_SDK_BRANCH = "env/test";
+      
+      const exitCode = await generateAction("typescript", {
+        "open-api-file": "./specs/openapi.json",
+        projectName: "test-project",
+      });
+
+      expect(generateAndWatchSDK).toHaveBeenCalledWith(
+        expect.objectContaining({
+          branch: "env/test",
+        }),
+      );
+      expect(exitCode).toBe(0);
+    });
+
+    it("uses branch from config defaults", async () => {
+      const configWithBranch = {
+        ...mockConfig,
+        defaults: {
+          ...mockConfig.defaults,
+          branch: "config/test",
+        },
+      };
+      vi.mocked(loadConfig).mockResolvedValue(configWithBranch);
+
+      const exitCode = await generateAction("typescript", {
+        "open-api-file": "./specs/openapi.json",
+        projectName: "test-project",
+      });
+
+      expect(generateAndWatchSDK).toHaveBeenCalledWith(
+        expect.objectContaining({
+          branch: "config/test",
+        }),
+      );
+      expect(exitCode).toBe(0);
+    });
+
+    it("prioritizes command line branch over environment variable and config", async () => {
+      process.env.STAINLESS_SDK_BRANCH = "env/test";
+      const configWithBranch = {
+        ...mockConfig,
+        defaults: {
+          ...mockConfig.defaults,
+          branch: "config/test",
+        },
+      };
+      vi.mocked(loadConfig).mockResolvedValue(configWithBranch);
+
+      const exitCode = await generateAction("typescript", {
+        branch: "cli/test",
+        "open-api-file": "./specs/openapi.json",
+        projectName: "test-project",
+      });
+
+      expect(generateAndWatchSDK).toHaveBeenCalledWith(
+        expect.objectContaining({
+          branch: "cli/test",
+        }),
+      );
+      expect(exitCode).toBe(0);
+    });
+
+    it("prioritizes environment variable over config defaults", async () => {
+      process.env.STAINLESS_SDK_BRANCH = "env/test";
+      const configWithBranch = {
+        ...mockConfig,
+        defaults: {
+          ...mockConfig.defaults,
+          branch: "config/test",
+        },
+      };
+      vi.mocked(loadConfig).mockResolvedValue(configWithBranch);
+
+      const exitCode = await generateAction("typescript", {
+        "open-api-file": "./specs/openapi.json",
+        projectName: "test-project",
+      });
+
+      expect(generateAndWatchSDK).toHaveBeenCalledWith(
+        expect.objectContaining({
+          branch: "env/test",
+        }),
+      );
+      expect(exitCode).toBe(0);
     });
 
     it("uses staging URL by default", async () => {
+      process.env.STAINLESS_SDK_BRANCH = "test/branch"; // Add branch via env var
+      
       const exitCode = await generateAction("typescript", {
         "open-api-file": "./specs/openapi.json",
         projectName: "test-project",
@@ -307,12 +444,15 @@ describe("CLI", () => {
       expect(generateAndWatchSDK).toHaveBeenCalledWith(
         expect.objectContaining({
           sdkRepo: mockConfig.stainlessSdkRepos.typescript.staging,
+          branch: "test/branch",
         }),
       );
       expect(exitCode).toBe(0);
     });
 
     it("uses production URL when prod flag is set", async () => {
+      process.env.STAINLESS_SDK_BRANCH = "test/branch"; // Add branch via env var
+      
       const exitCode = await generateAction("typescript", {
         "open-api-file": "./specs/openapi.json",
         projectName: "test-project",
@@ -322,6 +462,7 @@ describe("CLI", () => {
       expect(generateAndWatchSDK).toHaveBeenCalledWith(
         expect.objectContaining({
           sdkRepo: mockConfig.stainlessSdkRepos.typescript.prod,
+          branch: "test/branch",
         }),
       );
       expect(exitCode).toBe(0);
@@ -365,6 +506,87 @@ describe("CLI", () => {
       expect(mockSpinner.fail).toHaveBeenCalledWith(
         expect.stringContaining('SDK "nonexistent" not found in configuration'),
       );
+    });
+
+    it("resolves target directory template variables in console output", async () => {
+      const configWithTemplates = {
+        ...mockConfig,
+        defaults: {
+          ...mockConfig.defaults,
+          targetDir: "./sdks/{env}/{sdk}/{branch}",
+        },
+      };
+      vi.mocked(loadConfig).mockResolvedValue(configWithTemplates);
+
+      const exitCode = await generateAction("typescript", {
+        branch: "user/feature/test",
+        "open-api-file": "./specs/openapi.json",
+        projectName: "test-project",
+      });
+
+      expect(exitCode).toBe(0);
+      expect(consoleOutput).toContain("Target directory: /mock/test/dir/sdks/staging/typescript/user-feature-test");
+    });
+
+    it("resolves target directory with prod environment", async () => {
+      const configWithTemplates = {
+        ...mockConfig,
+        defaults: {
+          ...mockConfig.defaults,
+          targetDir: "./sdks/{env}/{sdk}/{branch}",
+        },
+      };
+      vi.mocked(loadConfig).mockResolvedValue(configWithTemplates);
+
+      const exitCode = await generateAction("typescript", {
+        branch: "main",
+        "open-api-file": "./specs/openapi.json",
+        projectName: "test-project",
+        prod: true,
+      });
+
+      expect(exitCode).toBe(0);
+      expect(consoleOutput).toContain("Target directory: /mock/test/dir/sdks/prod/typescript/main");
+    });
+
+    it("resolves target directory with only some template variables", async () => {
+      const configWithTemplates = {
+        ...mockConfig,
+        defaults: {
+          ...mockConfig.defaults,
+          targetDir: "./custom/{sdk}/path/{branch}",
+        },
+      };
+      vi.mocked(loadConfig).mockResolvedValue(configWithTemplates);
+
+      const exitCode = await generateAction("typescript", {
+        branch: "user/dev",
+        "open-api-file": "./specs/openapi.json",
+        projectName: "test-project",
+      });
+
+      expect(exitCode).toBe(0);
+      expect(consoleOutput).toContain("Target directory: /mock/test/dir/custom/typescript/path/user-dev");
+    });
+
+    it("leaves target directory unchanged when no template variables used", async () => {
+      const configWithoutTemplates = {
+        ...mockConfig,
+        defaults: {
+          ...mockConfig.defaults,
+          targetDir: "./fixed/path/sdk",
+        },
+      };
+      vi.mocked(loadConfig).mockResolvedValue(configWithoutTemplates);
+
+      const exitCode = await generateAction("typescript", {
+        branch: "main",
+        "open-api-file": "./specs/openapi.json",
+        projectName: "test-project",
+      });
+
+      expect(exitCode).toBe(0);
+      expect(consoleOutput).toContain("Target directory: /mock/test/dir/fixed/path/sdk");
     });
   });
 });
