@@ -1,5 +1,11 @@
 # stainless-tools changelog
 
+## 3.2.0
+
+### Minor Changes
+
+- [#22](https://github.com/theogravity/stainless-tools/pull/22) [`df9dd0b`](https://github.com/theogravity/stainless-tools/commit/df9dd0b06afcce109912f7ac6cc8954f3635fa23) Thanks [@theogravity](https://github.com/theogravity)! - Remove ESM support. Having issues when running the tool globally.
+
 ## 3.1.1
 
 ### Patch Changes
