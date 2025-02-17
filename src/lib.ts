@@ -35,6 +35,13 @@ interface GenerateAndWatchSDKOptions {
   };
   /** The environment (staging/prod) being used */
   env?: string;
+  /** Optional lifecycle hooks for each SDK */
+  lifecycle?: {
+    [key: string]: {
+      postClone?: string;
+      postUpdate?: string;
+    };
+  };
 }
 
 /**

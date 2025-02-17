@@ -170,6 +170,7 @@ export async function generateAction(sdkName: string, options: GenerateOptions):
         guessConfig: options["guess-config"] || config.defaults?.guessConfig,
       },
       env: mode,
+      lifecycle: config.lifecycle
     });
 
     spinner.succeed(`SDK "${sdkName}" is ready and watching for changes`);
