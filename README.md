@@ -206,23 +206,36 @@ This hook is useful for:
 - Updating dependencies
 - Running tests against new changes
 
-Example configuration:
+### Lifecycle Hook Configuration
+
+Hooks are configured in the `lifecycle` section of your configuration file:
 
 ```javascript
+// stainless-tools.config.js
 module.exports = {
   stainlessSdkRepos: {
     typescript: {
-      // Run after initial clone or repository update
+      staging: 'git@github.com:stainless-sdks/yourproject-typescript-staging.git',
+      prod: 'git@github.com:stainless-sdks/yourproject-typescript.git',
+    },
+  },
+  lifecycle: {
+    typescript: {
+      // Run after initial clone
       postClone: 'npm install && npm run build',
       // Run after pulling new changes
       postUpdate: 'npm run build',
+    },
+    python: {
+      postClone: 'python -m venv venv && source venv/bin/activate && pip install -e .',
+      postUpdate: 'source venv/bin/activate && pip install -e .',
     },
   },
 };
 ```
 
 The hook commands:
-- Run from the current working directory
+- Run from the SDK repository directory
 - Have access to a shell (so you can use &&, ||, etc.)
 - Will cause the tool to exit with an error if the command fails
 - Have access to the following environment variables:
@@ -230,41 +243,24 @@ The hook commands:
   - `STAINLESS_TOOLS_SDK_BRANCH`: Name of the current branch
   - `STAINLESS_TOOLS_SDK_REPO_NAME`: Name of the SDK repository (e.g., "typescript", "python")
 
-Example usage scenarios:
+Example using environment variables:
 
 ```javascript
-// Using environment variables in hooks
 module.exports = {
   lifecycle: {
     typescript: {
       // Use environment variables to avoid hardcoding paths
       postClone: 'cd $STAINLESS_TOOLS_SDK_PATH && npm install && npm run build',
       // Log the current branch during updates
-      postUpdate: `
-        echo "Updating SDK on branch $STAINLESS_TOOLS_SDK_BRANCH" && \
-        cd $STAINLESS_TOOLS_SDK_PATH && \
-        npm run build
-      `
+      postUpdate: 'echo "Updating SDK on branch $STAINLESS_TOOLS_SDK_BRANCH" && npm run build'
     }
   }
 };
+```
 
-// Python SDK with virtual environment setup using env vars
-module.exports = {
-  lifecycle: {
-    python: {
-      postClone: `
-        cd $STAINLESS_TOOLS_SDK_PATH && \
-        python -m venv venv && \
-        source venv/bin/activate && \
-        pip install -e .
-      `,
-      postUpdate: 'cd $STAINLESS_TOOLS_SDK_PATH && source venv/bin/activate && pip install -e .'
-    }
-  }
-};
+You can also use external scripts:
 
-// Using a custom build script with env vars
+```javascript
 module.exports = {
   lifecycle: {
     typescript: {
@@ -273,35 +269,22 @@ module.exports = {
     }
   }
 };
+```
 
-// Example setup-sdk.sh:
+Example setup script (`setup-sdk.sh`):
+```bash
 #!/bin/bash
 echo "Setting up $STAINLESS_TOOLS_SDK_REPO_NAME SDK in $STAINLESS_TOOLS_SDK_PATH"
 cd "$STAINLESS_TOOLS_SDK_PATH"
 
-case "$STAINLESS_TOOLS_SDK_REPO_NAME" in
-  "typescript")
-    npm install && npm run build
-    ;;
-  "python")
-    python -m venv venv
-    source venv/bin/activate
-    pip install -e .
-    ;;
-  *)
-    echo "Unknown SDK type: $STAINLESS_TOOLS_SDK_REPO_NAME"
-    exit 1
-    ;;
-esac
+# Install dependencies
+npm install
+
+# Run build
+npm run build
+
+# Additional setup steps...
 ```
-
-Note: If you have local changes when updates are pulled:
-1. Your changes are stashed
-2. New changes are pulled
-3. The `postUpdate` hook runs
-4. Your local changes are reapplied
-
-This ensures your local changes don't interfere with the update process while still being preserved.
 
 ## Generate Command
 
