@@ -1,5 +1,11 @@
 # stainless-tools changelog
 
+## 3.3.3
+
+### Patch Changes
+
+- [#29](https://github.com/theogravity/stainless-tools/pull/29) [`e79cb68`](https://github.com/theogravity/stainless-tools/commit/e79cb6841b4eb94223439a382ef3a167aedf2d1c) Thanks [@theogravity](https://github.com/theogravity)! - Fix lifecycle config not getting passed when using cli
+
 ## 3.3.2
 
 ### Patch Changes
