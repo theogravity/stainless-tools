@@ -1,5 +1,11 @@
 # stainless-tools changelog
 
+## 3.3.2
+
+### Patch Changes
+
+- [`a13a07e`](https://github.com/theogravity/stainless-tools/commit/a13a07e5cc840cc91b6e005d46072dd662590efd) Thanks [@theogravity](https://github.com/theogravity)! - Fix readme examples
+
 ## 3.3.1
 
 ### Patch Changes
