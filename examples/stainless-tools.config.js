@@ -22,6 +22,23 @@ module.exports = {
     },
   },
 
+  // Optional lifecycle hooks for each SDK
+  // These commands are executed at specific points in the SDK lifecycle
+  lifecycle: {
+    typescript: {
+      // Command to run after cloning/updating the repository
+      // Useful for installing dependencies, building, etc.
+      postClone: 'npm install && npm run build',
+      // Command to run after pulling changes
+      // Useful for rebuilding, running migrations, etc.
+      postUpdate: 'npm run build',
+    },
+    python: {
+      postClone: 'pip install -e .',
+      postUpdate: 'pip install -e .',
+    },
+  },
+
   // Optional default configurations
   // These values will be used if not provided via CLI options
   defaults: {

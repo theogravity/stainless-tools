@@ -6,6 +6,7 @@ import simpleGit, { type SimpleGit } from "simple-git";
 import { StainlessApi } from "./StainlessApi.js";
 import { StainlessError } from "./StainlessError.js";
 import { getTargetDir, isValidGitUrl } from "./utils.js";
+import { execa } from "execa";
 
 interface StainlessToolsOptions {
   sdkRepo: string;
@@ -22,6 +23,12 @@ interface StainlessToolsOptions {
   };
   sdkName?: string;
   env?: string; // The environment (e.g. "staging" or "prod")
+  lifecycle?: {
+    [key: string]: {
+      postClone?: string;
+      postUpdate?: string;
+    };
+  };
 }
 
 /**
@@ -258,7 +265,29 @@ export class StainlessTools {
           await this.sdkGit.cwd(resolvedTargetDir);
           await this.sdkGit.checkout(this.options.branch);
           this.lastSdkCommitHash = await this.getCurrentSdkCommitHash();
+
+          // Execute postClone command if configured (only after fresh clone)
+          const postCloneCommand = this.options.lifecycle?.[this.options.sdkName ?? ""]?.postClone;
+          if (this.options.sdkName && postCloneCommand) {
+            try {
+              await execa(postCloneCommand, {
+                shell: true,
+                env: {
+                  STAINLESS_TOOLS_SDK_PATH: resolvedTargetDir,
+                  STAINLESS_TOOLS_SDK_BRANCH: this.options.branch,
+                  STAINLESS_TOOLS_SDK_REPO_NAME: this.options.sdkName,
+                },
+              });
+            } catch (error) {
+              // Throw postClone error directly since it's already a StainlessError
+              throw new StainlessError(`Failed to execute postClone command: ${postCloneCommand}`, error);
+            }
+          }
         } catch (error) {
+          // If the error is from postClone, rethrow it
+          if (error instanceof StainlessError && error.message.includes("Failed to execute postClone command")) {
+            throw error;
+          }
           throw new StainlessError(`Failed to clone SDK repository (${this.options.sdkRepo})`, error);
         }
       }
@@ -386,9 +415,26 @@ export class StainlessTools {
             }
           }
         }
+
+        // Execute postUpdate command if configured (after pull and restoring any stashed changes)
+        const postUpdateCommand = this.options.lifecycle?.[this.options.sdkName ?? ""]?.postUpdate;
+        if (this.options.sdkName && postUpdateCommand) {
+          try {
+            await execa(postUpdateCommand, {
+              shell: true,
+              env: {
+                STAINLESS_TOOLS_SDK_PATH: this.getTargetDir(),
+                STAINLESS_TOOLS_SDK_BRANCH: this.options.branch,
+                STAINLESS_TOOLS_SDK_REPO_NAME: this.options.sdkName,
+              },
+            });
+          } catch (error) {
+            throw new StainlessError(`Failed to execute postUpdate command: ${postUpdateCommand}`, error);
+          }
+        }
       } catch (error) {
         // If pull fails and we stashed changes, try to restore them
-        if (hasLocalChanges) {
+        if (hasLocalChanges && !(error instanceof StainlessError)) {
           try {
             console.log("\nPull failed, attempting to restore your local changes...");
             await this.sdkGit.stash(["pop"]);
@@ -407,6 +453,7 @@ export class StainlessTools {
         throw error;
       }
     } catch (error) {
+      if (error instanceof StainlessError) throw error;
       throw new StainlessError("Failed to pull changes", error);
     }
   }
