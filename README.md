@@ -15,6 +15,7 @@ A TypeScript library and CLI tool for managing [Stainless](https://www.stainless
   - [Configuration Schema](#configuration-schema)
   - [Target Directory Templates](#target-directory-templates)
   - [Example Configuration](#example-configuration)
+  - [Lifecycle Hooks](#lifecycle-hooks)
 - [Generate Command](#generate-command)
   - [Usage](#usage)
   - [Branch Configuration and Environments](#branch-configuration-and-environments)
@@ -30,6 +31,7 @@ A TypeScript library and CLI tool for managing [Stainless](https://www.stainless
 - 📦 Can be used as a library in your own projects
 - 🎯 Default configurations for easier usage
 - 🔑 Integration with Stainless API for publishing changes
+- 🔄 Lifecycle hooks for post-clone automation
 
 ## About this project
 
@@ -91,6 +93,16 @@ interface StainlessConfig {
     };
   };
 
+  // Optional lifecycle hooks for each SDK
+  // These commands are executed at specific points in the SDK lifecycle
+  lifecycle?: {
+    [key: string]: {
+      // Command to run after cloning/updating the repository
+      // Useful for installing dependencies, building, etc.
+      postClone: string;
+    };
+  };
+
   defaults?: {
     // Default branch name for all SDKs (required if not using cli flag or the STAINLESS_SDK_BRANCH environment variable)
     // Typically use 'main' for production and '<username>/dev' for staging
@@ -100,20 +112,20 @@ interface StainlessConfig {
     // Default target directory for generated SDKs. Supports the following template variables:
     // - {sdk}: The name of the SDK being generated
     // - {env}: The environment (staging/prod) being used
-    // - {branch}: The git branch name
+    // - {branch}: The git branch name (forward slashes converted to hyphens)
     targetDir?: string;
 
-    // OpenAPI specification file path (required if not using cli flag)
-    openApiFile: string;
+    // Default OpenAPI specification file location
+    openApiFile?: string;
 
-    // Optional: Stainless config file path
+    // Default Stainless configuration file
     stainlessConfigFile?: string;
 
-    // Stainless project name (required if not using cli flag)
-    projectName?: string;
-
-    // Whether to use the "Guess with AI" command from the Stainless Studio for the Stainless Config. Default is false.
+    // Whether to use the "Guess with AI" command from the Stainless Studio for the Stainless Config
     guessConfig?: boolean;
+
+    // Default project name
+    projectName?: string;
   };
 }
 ```
@@ -167,6 +179,129 @@ module.exports = {
   }
 };
 ```
+
+### Lifecycle Hooks
+
+The tool supports lifecycle hooks that allow you to automate tasks after certain operations. Currently supported hooks:
+
+#### postClone
+
+The `postClone` hook runs after:
+- Initial clone of an SDK repository
+
+This hook is useful for:
+- Installing dependencies
+- Running initial build scripts
+- Setting up the development environment
+
+#### postUpdate
+
+The `postUpdate` hook runs after:
+- Pulling new changes from the remote repository
+- And after restoring any stashed local changes (if there were any)
+
+This hook is useful for:
+- Rebuilding after updates
+- Running database migrations
+- Updating dependencies
+- Running tests against new changes
+
+Example configuration:
+
+```javascript
+module.exports = {
+  stainlessSdkRepos: {
+    typescript: {
+      // Run after initial clone or repository update
+      postClone: 'npm install && npm run build',
+      // Run after pulling new changes
+      postUpdate: 'npm run build',
+    },
+  },
+};
+```
+
+The hook commands:
+- Run from the current working directory
+- Have access to a shell (so you can use &&, ||, etc.)
+- Will cause the tool to exit with an error if the command fails
+- Have access to the following environment variables:
+  - `STAINLESS_TOOLS_SDK_PATH`: Full path to the cloned SDK repository
+  - `STAINLESS_TOOLS_SDK_BRANCH`: Name of the current branch
+  - `STAINLESS_TOOLS_SDK_REPO_NAME`: Name of the SDK repository (e.g., "typescript", "python")
+
+Example usage scenarios:
+
+```javascript
+// Using environment variables in hooks
+module.exports = {
+  lifecycle: {
+    typescript: {
+      // Use environment variables to avoid hardcoding paths
+      postClone: 'cd $STAINLESS_TOOLS_SDK_PATH && npm install && npm run build',
+      // Log the current branch during updates
+      postUpdate: `
+        echo "Updating SDK on branch $STAINLESS_TOOLS_SDK_BRANCH" && \
+        cd $STAINLESS_TOOLS_SDK_PATH && \
+        npm run build
+      `
+    }
+  }
+};
+
+// Python SDK with virtual environment setup using env vars
+module.exports = {
+  lifecycle: {
+    python: {
+      postClone: `
+        cd $STAINLESS_TOOLS_SDK_PATH && \
+        python -m venv venv && \
+        source venv/bin/activate && \
+        pip install -e .
+      `,
+      postUpdate: 'cd $STAINLESS_TOOLS_SDK_PATH && source venv/bin/activate && pip install -e .'
+    }
+  }
+};
+
+// Using a custom build script with env vars
+module.exports = {
+  lifecycle: {
+    typescript: {
+      postClone: './scripts/setup-sdk.sh',  // Script has access to env vars
+      postUpdate: './scripts/update-sdk.sh'
+    }
+  }
+};
+
+// Example setup-sdk.sh:
+#!/bin/bash
+echo "Setting up $STAINLESS_TOOLS_SDK_REPO_NAME SDK in $STAINLESS_TOOLS_SDK_PATH"
+cd "$STAINLESS_TOOLS_SDK_PATH"
+
+case "$STAINLESS_TOOLS_SDK_REPO_NAME" in
+  "typescript")
+    npm install && npm run build
+    ;;
+  "python")
+    python -m venv venv
+    source venv/bin/activate
+    pip install -e .
+    ;;
+  *)
+    echo "Unknown SDK type: $STAINLESS_TOOLS_SDK_REPO_NAME"
+    exit 1
+    ;;
+esac
+```
+
+Note: If you have local changes when updates are pulled:
+1. Your changes are stashed
+2. New changes are pulled
+3. The `postUpdate` hook runs
+4. Your local changes are reapplied
+
+This ensures your local changes don't interfere with the update process while still being preserved.
 
 ## Generate Command
 

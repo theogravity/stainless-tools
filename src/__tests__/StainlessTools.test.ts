@@ -1,9 +1,15 @@
 import { watch } from "chokidar";
 import type { FSWatcher } from "chokidar";
+import { execa } from "execa";
 import mock from "mock-fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { StainlessError } from "../StainlessError";
 import { StainlessTools } from "../StainlessTools";
+
+// Mock execa
+vi.mock("execa", () => ({
+  execa: vi.fn().mockResolvedValue({ stdout: "success", stderr: "" }),
+}));
 
 // Mock chokidar
 vi.mock("chokidar", () => {
@@ -70,6 +76,7 @@ describe("StainlessTools", () => {
     mockGit.stash.mockReset();
     mockGit.revparse.mockReset();
     mockGit.getRemotes.mockReset();
+    vi.mocked(execa).mockReset();
 
     // Set default successful responses
     mockGit.status.mockResolvedValue({ isClean: () => true });
@@ -323,6 +330,135 @@ describe("StainlessTools", () => {
       expect(mockGit.fetch).toHaveBeenCalled();
       expect(mockGit.checkout).toHaveBeenCalledWith("main");
     });
+
+    it("executes postClone command when configured", async () => {
+      // Mock directory does not exist
+      mockGit.revparse.mockRejectedValue(new Error("not a git repo"));
+
+      const toolsWithLifecycle = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+        sdkName: "typescript",
+        lifecycle: {
+          typescript: {
+            postClone: "npm install && npm run build",
+          },
+        },
+      });
+
+      await toolsWithLifecycle.clone();
+
+      expect(execa).toHaveBeenCalledWith(
+        "npm install && npm run build",
+        expect.objectContaining({
+          shell: true,
+        }),
+      );
+    });
+
+    it("skips postClone command when sdkName doesn't match", async () => {
+      // Mock directory does not exist
+      mockGit.revparse.mockRejectedValue(new Error("not a git repo"));
+
+      const toolsWithLifecycle = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+        sdkName: "python",
+        lifecycle: {
+          typescript: {
+            postClone: "npm install && npm run build",
+          },
+        },
+      });
+
+      await toolsWithLifecycle.clone();
+
+      expect(execa).not.toHaveBeenCalled();
+    });
+
+    it("handles postClone command failure", async () => {
+      // Mock directory does not exist
+      mockGit.revparse.mockRejectedValue(new Error("not a git repo"));
+
+      // Mock execa to fail
+      vi.mocked(execa).mockRejectedValue(new Error("Command failed"));
+
+      const toolsWithLifecycle = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+        sdkName: "typescript",
+        lifecycle: {
+          typescript: {
+            postClone: "npm install && npm run build",
+          },
+        },
+      });
+
+      await expect(toolsWithLifecycle.clone()).rejects.toThrow("Failed to execute postClone command");
+      expect(execa).toHaveBeenCalledWith(
+        "npm install && npm run build",
+        expect.objectContaining({
+          shell: true,
+        }),
+      );
+    });
+
+    it("executes postClone command after updating existing repo", async () => {
+      // Mock directory exists and is a git repo
+      mockGit.revparse.mockResolvedValue("git-dir");
+      mockGit.getRemotes.mockResolvedValue([{ name: "origin", refs: { fetch: "git@ssh.github.com:org/repo.git" } }]);
+
+      const toolsWithLifecycle = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+        sdkName: "typescript",
+        lifecycle: {
+          typescript: {
+            postClone: "npm install && npm run build",
+          },
+        },
+      });
+
+      await toolsWithLifecycle.clone();
+
+      // postClone should not be called for existing repos
+      expect(execa).not.toHaveBeenCalled();
+    });
+
+    it("executes postClone command with environment variables", async () => {
+      // Mock directory does not exist
+      mockGit.revparse.mockRejectedValue(new Error("not a git repo"));
+
+      const toolsWithLifecycle = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+        sdkName: "typescript",
+        lifecycle: {
+          typescript: {
+            postClone: "echo $STAINLESS_TOOLS_SDK_PATH",
+          },
+        },
+      });
+
+      await toolsWithLifecycle.clone();
+
+      expect(execa).toHaveBeenCalledWith(
+        "echo $STAINLESS_TOOLS_SDK_PATH",
+        expect.objectContaining({
+          shell: true,
+          env: {
+            STAINLESS_TOOLS_SDK_PATH: "/test/target-dir",
+            STAINLESS_TOOLS_SDK_BRANCH: "main",
+            STAINLESS_TOOLS_SDK_REPO_NAME: "typescript",
+          },
+        }),
+      );
+    });
   });
 
   describe("hasNewChanges", () => {
@@ -503,6 +639,177 @@ describe("StainlessTools", () => {
       expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Could not update to the latest SDK version"));
       expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("To update manually:"));
       expect(mockExit).toHaveBeenCalledWith(1);
+    });
+
+    it("executes postUpdate command after pulling changes", async () => {
+      const tools = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+        sdkName: "typescript",
+        lifecycle: {
+          typescript: {
+            postClone: "npm install",
+            postUpdate: "npm run build",
+          },
+        },
+      });
+
+      await tools.pullChanges();
+
+      expect(mockGit.pull).toHaveBeenCalled();
+      expect(execa).toHaveBeenCalledWith(
+        "npm run build",
+        expect.objectContaining({
+          shell: true,
+        }),
+      );
+    });
+
+    it("skips postUpdate command when sdkName doesn't match", async () => {
+      const tools = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+        sdkName: "python",
+        lifecycle: {
+          typescript: {
+            postClone: "npm install",
+            postUpdate: "npm run build",
+          },
+        },
+      });
+
+      await tools.pullChanges();
+
+      expect(mockGit.pull).toHaveBeenCalled();
+      expect(execa).not.toHaveBeenCalled();
+    });
+
+    it("handles postUpdate command failure", async () => {
+      // Mock execa to fail
+      vi.mocked(execa).mockRejectedValue(new Error("Command failed"));
+
+      const tools = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+        sdkName: "typescript",
+        lifecycle: {
+          typescript: {
+            postClone: "npm install",
+            postUpdate: "npm run build",
+          },
+        },
+      });
+
+      await expect(tools.pullChanges()).rejects.toThrow("Failed to execute postUpdate command");
+      expect(execa).toHaveBeenCalledWith(
+        "npm run build",
+        expect.objectContaining({
+          shell: true,
+        }),
+      );
+    });
+
+    it("executes postUpdate command after restoring stashed changes", async () => {
+      // Mock repository with local changes
+      mockGit.status.mockResolvedValue({ isClean: () => false });
+
+      const tools = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+        sdkName: "typescript",
+        lifecycle: {
+          typescript: {
+            postClone: "npm install",
+            postUpdate: "npm run build",
+          },
+        },
+      });
+
+      await tools.pullChanges();
+
+      expect(mockGit.stash).toHaveBeenCalledWith(["push", "-u", "-m", "Stashing changes before SDK update"]);
+      expect(mockGit.pull).toHaveBeenCalled();
+      expect(execa).toHaveBeenCalledWith(
+        "npm run build",
+        expect.objectContaining({
+          shell: true,
+        }),
+      );
+      expect(mockGit.stash).toHaveBeenCalledWith(["pop"]);
+    });
+
+    it("works with no lifecycle hooks configured", async () => {
+      // Mock directory does not exist
+      mockGit.revparse.mockRejectedValue(new Error("not a git repo"));
+
+      const tools = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+        sdkName: "typescript",
+        lifecycle: {
+          typescript: {},
+        },
+      });
+
+      await tools.clone();
+      await tools.pullChanges();
+
+      expect(mockGit.clone).toHaveBeenCalled();
+      expect(mockGit.pull).toHaveBeenCalled();
+      expect(execa).not.toHaveBeenCalled();
+    });
+
+    it("works with no lifecycle configuration at all", async () => {
+      // Mock directory does not exist
+      mockGit.revparse.mockRejectedValue(new Error("not a git repo"));
+
+      const tools = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+        sdkName: "typescript",
+      });
+
+      await tools.clone();
+      await tools.pullChanges();
+
+      expect(mockGit.clone).toHaveBeenCalled();
+      expect(mockGit.pull).toHaveBeenCalled();
+      expect(execa).not.toHaveBeenCalled();
+    });
+
+    it("executes postUpdate command with environment variables", async () => {
+      const tools = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "feature/test",
+        targetDir: "/test/target-dir",
+        sdkName: "python",
+        lifecycle: {
+          python: {
+            postUpdate: "echo $STAINLESS_TOOLS_SDK_REPO_NAME",
+          },
+        },
+      });
+
+      await tools.pullChanges();
+
+      expect(mockGit.pull).toHaveBeenCalled();
+      expect(execa).toHaveBeenCalledWith(
+        "echo $STAINLESS_TOOLS_SDK_REPO_NAME",
+        expect.objectContaining({
+          shell: true,
+          env: {
+            STAINLESS_TOOLS_SDK_PATH: "/test/target-dir",
+            STAINLESS_TOOLS_SDK_BRANCH: "feature/test",
+            STAINLESS_TOOLS_SDK_REPO_NAME: "python",
+          },
+        }),
+      );
     });
   });
 

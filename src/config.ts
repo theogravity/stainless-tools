@@ -14,9 +14,17 @@ const repoConfigSchema = z
     "At least one of staging or prod must be defined",
   );
 
+const lifecycleConfigSchema = z.object({
+  postClone: z.string().optional(),
+  postUpdate: z.string().optional(),
+});
+
 export const configSchema = z.object({
   // Required fields
   stainlessSdkRepos: z.record(z.string().min(1), repoConfigSchema),
+
+  // Optional lifecycle hooks
+  lifecycle: z.record(z.string().min(1), lifecycleConfigSchema).optional(),
 
   // Optional default configurations
   defaults: z
