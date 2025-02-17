@@ -1,5 +1,11 @@
 # stainless-tools changelog
 
+## 3.3.0
+
+### Minor Changes
+
+- [#24](https://github.com/theogravity/stainless-tools/pull/24) [`b7e6ba0`](https://github.com/theogravity/stainless-tools/commit/b7e6ba08669c14579925b64b5cbec444359a1b48) Thanks [@theogravity](https://github.com/theogravity)! - Add lifecycle methods
+
 ## 3.2.0
 
 ### Minor Changes
