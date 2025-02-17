@@ -165,7 +165,15 @@ describe("CLI", () => {
   describe("generate command", () => {
     beforeEach(() => {
       vi.resetAllMocks();
-      vi.mocked(loadConfig).mockResolvedValue(defaultMockConfig);
+      vi.mocked(loadConfig).mockResolvedValue({
+        ...defaultMockConfig,
+        lifecycle: {
+          "test-sdk": {
+            postClone: "npm install && npm run build",
+            postUpdate: "npm run build"
+          }
+        }
+      });
     });
 
     it("generates SDK with default configuration", async () => {
@@ -271,6 +279,26 @@ describe("CLI", () => {
       // Cleanup
       process.emit = originalEmit;
       exitSpy.mockRestore();
+    });
+
+    it("passes lifecycle configuration to generateAndWatchSDK", async () => {
+      const exitCode = await generateAction("test-sdk", {
+        "open-api-file": "./specs/openapi.json",
+        projectName: "test-project",
+      });
+
+      expect(generateAndWatchSDK).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sdkName: "test-sdk",
+          lifecycle: {
+            "test-sdk": {
+              postClone: "npm install && npm run build",
+              postUpdate: "npm run build"
+            }
+          }
+        }),
+      );
+      expect(exitCode).toBe(0);
     });
   });
 
