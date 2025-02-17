@@ -335,6 +335,21 @@ describe("StainlessTools", () => {
       // Mock directory does not exist
       mockGit.revparse.mockRejectedValue(new Error("not a git repo"));
 
+      // Mock execa to return some output
+      vi.mocked(execa).mockResolvedValue({
+        stdout: Buffer.from("Installing dependencies...\nBuild complete"),
+        stderr: Buffer.from("Some warning message"),
+        exitCode: 0,
+        failed: false,
+        killed: false,
+        command: "",
+        timedOut: false,
+        isCanceled: false,
+        escapedCommand: "",
+        cwd: "/test/target-dir",
+        all: undefined,
+      });
+
       const toolsWithLifecycle = new StainlessTools({
         sdkRepo: "git@ssh.github.com:org/repo.git",
         branch: "main",
@@ -347,6 +362,9 @@ describe("StainlessTools", () => {
         },
       });
 
+      const consoleSpy = vi.spyOn(console, "log");
+      const consoleErrorSpy = vi.spyOn(console, "error");
+
       await toolsWithLifecycle.clone();
 
       expect(execa).toHaveBeenCalledWith(
@@ -355,6 +373,14 @@ describe("StainlessTools", () => {
           shell: true,
         }),
       );
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Executing postClone command: npm install && npm run build"));
+      expect(consoleSpy).toHaveBeenCalledWith("Installing dependencies...\nBuild complete");
+      expect(consoleErrorSpy).toHaveBeenCalledWith("Some warning message");
+      expect(consoleSpy).toHaveBeenCalledWith("✓ Successfully executed postClone command");
+
+      consoleSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
     });
 
     it("skips postClone command when sdkName doesn't match", async () => {
@@ -433,6 +459,21 @@ describe("StainlessTools", () => {
       // Mock directory does not exist
       mockGit.revparse.mockRejectedValue(new Error("not a git repo"));
 
+      // Mock execa to return some output
+      vi.mocked(execa).mockResolvedValue({
+        stdout: Buffer.from("/test/target-dir"),
+        stderr: Buffer.from(""),
+        exitCode: 0,
+        failed: false,
+        killed: false,
+        command: "",
+        timedOut: false,
+        isCanceled: false,
+        escapedCommand: "",
+        cwd: "/test/target-dir",
+        all: undefined,
+      });
+
       const toolsWithLifecycle = new StainlessTools({
         sdkRepo: "git@ssh.github.com:org/repo.git",
         branch: "main",
@@ -444,6 +485,9 @@ describe("StainlessTools", () => {
           },
         },
       });
+
+      const consoleSpy = vi.spyOn(console, "log");
+      const consoleErrorSpy = vi.spyOn(console, "error");
 
       await toolsWithLifecycle.clone();
 
@@ -458,6 +502,13 @@ describe("StainlessTools", () => {
           },
         }),
       );
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Executing postClone command: echo $STAINLESS_TOOLS_SDK_PATH"));
+      expect(consoleSpy).toHaveBeenCalledWith("/test/target-dir");
+      expect(consoleSpy).toHaveBeenCalledWith("✓ Successfully executed postClone command");
+
+      consoleSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
     });
   });
 
@@ -642,6 +693,21 @@ describe("StainlessTools", () => {
     });
 
     it("executes postUpdate command after pulling changes", async () => {
+      // Mock execa to return some output
+      vi.mocked(execa).mockResolvedValue({
+        stdout: Buffer.from("Build complete"),
+        stderr: Buffer.from(""),
+        exitCode: 0,
+        failed: false,
+        killed: false,
+        command: "",
+        timedOut: false,
+        isCanceled: false,
+        escapedCommand: "",
+        cwd: "/test/target-dir",
+        all: undefined,
+      });
+
       const tools = new StainlessTools({
         sdkRepo: "git@ssh.github.com:org/repo.git",
         branch: "main",
@@ -649,11 +715,13 @@ describe("StainlessTools", () => {
         sdkName: "typescript",
         lifecycle: {
           typescript: {
-            postClone: "npm install",
             postUpdate: "npm run build",
           },
         },
       });
+
+      const consoleSpy = vi.spyOn(console, "log");
+      const consoleErrorSpy = vi.spyOn(console, "error");
 
       await tools.pullChanges();
 
@@ -664,6 +732,13 @@ describe("StainlessTools", () => {
           shell: true,
         }),
       );
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Executing postUpdate command: npm run build"));
+      expect(consoleSpy).toHaveBeenCalledWith("Build complete");
+      expect(consoleSpy).toHaveBeenCalledWith("✓ Successfully executed postUpdate command");
+
+      consoleSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
     });
 
     it("skips postUpdate command when sdkName doesn't match", async () => {
@@ -716,6 +791,21 @@ describe("StainlessTools", () => {
       // Mock repository with local changes
       mockGit.status.mockResolvedValue({ isClean: () => false });
 
+      // Mock execa to return some output
+      vi.mocked(execa).mockResolvedValue({
+        stdout: Buffer.from("Build complete"),
+        stderr: Buffer.from(""),
+        exitCode: 0,
+        failed: false,
+        killed: false,
+        command: "",
+        timedOut: false,
+        isCanceled: false,
+        escapedCommand: "",
+        cwd: "/test/target-dir",
+        all: undefined,
+      });
+
       const tools = new StainlessTools({
         sdkRepo: "git@ssh.github.com:org/repo.git",
         branch: "main",
@@ -729,6 +819,9 @@ describe("StainlessTools", () => {
         },
       });
 
+      const consoleSpy = vi.spyOn(console, "log");
+      const consoleErrorSpy = vi.spyOn(console, "error");
+
       await tools.pullChanges();
 
       expect(mockGit.stash).toHaveBeenCalledWith(["push", "-u", "-m", "Stashing changes before SDK update"]);
@@ -740,6 +833,13 @@ describe("StainlessTools", () => {
         }),
       );
       expect(mockGit.stash).toHaveBeenCalledWith(["pop"]);
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Executing postUpdate command: npm run build"));
+      expect(consoleSpy).toHaveBeenCalledWith("Build complete");
+      expect(consoleSpy).toHaveBeenCalledWith("✓ Successfully executed postUpdate command");
+
+      consoleSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
     });
 
     it("works with no lifecycle hooks configured", async () => {
@@ -784,6 +884,21 @@ describe("StainlessTools", () => {
     });
 
     it("executes postUpdate command with environment variables", async () => {
+      // Mock execa to return some output
+      vi.mocked(execa).mockResolvedValue({
+        stdout: Buffer.from("python"),
+        stderr: Buffer.from(""),
+        exitCode: 0,
+        failed: false,
+        killed: false,
+        command: "",
+        timedOut: false,
+        isCanceled: false,
+        escapedCommand: "",
+        cwd: "/test/target-dir",
+        all: undefined,
+      });
+
       const tools = new StainlessTools({
         sdkRepo: "git@ssh.github.com:org/repo.git",
         branch: "feature/test",
@@ -795,6 +910,9 @@ describe("StainlessTools", () => {
           },
         },
       });
+
+      const consoleSpy = vi.spyOn(console, "log");
+      const consoleErrorSpy = vi.spyOn(console, "error");
 
       await tools.pullChanges();
 
@@ -810,6 +928,68 @@ describe("StainlessTools", () => {
           },
         }),
       );
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Executing postUpdate command: echo $STAINLESS_TOOLS_SDK_REPO_NAME"));
+      expect(consoleSpy).toHaveBeenCalledWith("python");
+      expect(consoleSpy).toHaveBeenCalledWith("✓ Successfully executed postUpdate command");
+
+      consoleSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
+    });
+
+    it("executes postUpdate command with output logging", async () => {
+      // Mock execa to return some output
+      vi.mocked(execa).mockResolvedValue({
+        stdout: Buffer.from("Rebuilding...\nBuild complete"),
+        stderr: Buffer.from("Some warning during build"),
+        exitCode: 0,
+        failed: false,
+        killed: false,
+        command: "",
+        timedOut: false,
+        isCanceled: false,
+        escapedCommand: "",
+        cwd: "/test/target-dir",
+        all: undefined,
+      });
+
+      const tools = new StainlessTools({
+        sdkRepo: "git@ssh.github.com:org/repo.git",
+        branch: "feature/test",
+        targetDir: "/test/target-dir",
+        sdkName: "typescript",
+        lifecycle: {
+          typescript: {
+            postUpdate: "npm run build",
+          },
+        },
+      });
+
+      const consoleSpy = vi.spyOn(console, "log");
+      const consoleErrorSpy = vi.spyOn(console, "error");
+
+      await tools.pullChanges();
+
+      expect(mockGit.pull).toHaveBeenCalled();
+      expect(execa).toHaveBeenCalledWith(
+        "npm run build",
+        expect.objectContaining({
+          shell: true,
+          env: {
+            STAINLESS_TOOLS_SDK_PATH: "/test/target-dir",
+            STAINLESS_TOOLS_SDK_BRANCH: "feature/test",
+            STAINLESS_TOOLS_SDK_REPO_NAME: "typescript",
+          },
+        }),
+      );
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Executing postUpdate command: npm run build"));
+      expect(consoleSpy).toHaveBeenCalledWith("Rebuilding...\nBuild complete");
+      expect(consoleErrorSpy).toHaveBeenCalledWith("Some warning during build");
+      expect(consoleSpy).toHaveBeenCalledWith("✓ Successfully executed postUpdate command");
+
+      consoleSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
     });
   });
 
