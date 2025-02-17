@@ -270,7 +270,8 @@ export class StainlessTools {
           const postCloneCommand = this.options.lifecycle?.[this.options.sdkName ?? ""]?.postClone;
           if (this.options.sdkName && postCloneCommand) {
             try {
-              await execa(postCloneCommand, {
+              console.log(`\nExecuting postClone command: ${postCloneCommand}`);
+              const { stdout, stderr } = await execa(postCloneCommand, {
                 shell: true,
                 env: {
                   STAINLESS_TOOLS_SDK_PATH: resolvedTargetDir,
@@ -278,6 +279,9 @@ export class StainlessTools {
                   STAINLESS_TOOLS_SDK_REPO_NAME: this.options.sdkName,
                 },
               });
+              if (stdout) console.log(stdout.toString());
+              if (stderr) console.error(stderr.toString());
+              console.log("✓ Successfully executed postClone command");
             } catch (error) {
               // Throw postClone error directly since it's already a StainlessError
               throw new StainlessError(`Failed to execute postClone command: ${postCloneCommand}`, error);
@@ -420,7 +424,8 @@ export class StainlessTools {
         const postUpdateCommand = this.options.lifecycle?.[this.options.sdkName ?? ""]?.postUpdate;
         if (this.options.sdkName && postUpdateCommand) {
           try {
-            await execa(postUpdateCommand, {
+            console.log(`\nExecuting postUpdate command: ${postUpdateCommand}`);
+            const { stdout, stderr } = await execa(postUpdateCommand, {
               shell: true,
               env: {
                 STAINLESS_TOOLS_SDK_PATH: this.getTargetDir(),
@@ -428,6 +433,9 @@ export class StainlessTools {
                 STAINLESS_TOOLS_SDK_REPO_NAME: this.options.sdkName,
               },
             });
+            if (stdout) console.log(stdout.toString());
+            if (stderr) console.error(stderr.toString());
+            console.log("✓ Successfully executed postUpdate command");
           } catch (error) {
             throw new StainlessError(`Failed to execute postUpdate command: ${postUpdateCommand}`, error);
           }
