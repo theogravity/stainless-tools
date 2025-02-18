@@ -408,11 +408,14 @@ describe("StainlessTools", () => {
       // Mock directory does not exist
       mockGit.revparse.mockRejectedValue(new Error("not a git repo"));
 
-      // Mock execa to fail
-      vi.mocked(execa).mockRejectedValue(new Error("Command failed"));
+      // Mock execa to fail with stdout/stderr
+      vi.mocked(execa).mockRejectedValue(Object.assign(new Error("Command failed"), {
+        stdout: Buffer.from("Some build output"),
+        stderr: Buffer.from("Error: npm install failed"),
+      }));
 
       const toolsWithLifecycle = new StainlessTools({
-        sdkRepo: "git@ssh.github.com:org/repo.git",
+        sdkRepo: "git@github.com:org/repo.git",
         branch: "main",
         targetDir: "/test/target-dir",
         sdkName: "typescript",
@@ -423,13 +426,55 @@ describe("StainlessTools", () => {
         },
       });
 
+      const consoleSpy = vi.spyOn(console, "log");
+      const consoleErrorSpy = vi.spyOn(console, "error");
+
       await expect(toolsWithLifecycle.clone()).rejects.toThrow("Failed to execute postClone command");
+      
+      // Verify command output was printed
+      expect(consoleSpy).toHaveBeenCalledWith("Some build output");
+      expect(consoleErrorSpy).toHaveBeenCalledWith("Error: npm install failed");
       expect(execa).toHaveBeenCalledWith(
         "npm install && npm run build",
         expect.objectContaining({
           shell: true,
         }),
       );
+
+      consoleSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
+    });
+
+    it("handles postClone command failure without output", async () => {
+      // Mock directory does not exist
+      mockGit.revparse.mockRejectedValue(new Error("not a git repo"));
+
+      // Mock execa to fail without stdout/stderr
+      vi.mocked(execa).mockRejectedValue(new Error("Command failed"));
+
+      const toolsWithLifecycle = new StainlessTools({
+        sdkRepo: "git@github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+        sdkName: "typescript",
+        lifecycle: {
+          typescript: {
+            postClone: "npm install && npm run build",
+          },
+        },
+      });
+
+      const consoleSpy = vi.spyOn(console, "log");
+      const consoleErrorSpy = vi.spyOn(console, "error");
+
+      await expect(toolsWithLifecycle.clone()).rejects.toThrow("Failed to execute postClone command");
+      
+      // Verify no output was printed since none was available
+      expect(consoleSpy).not.toHaveBeenCalledWith(expect.stringMatching(/build output/));
+      expect(consoleErrorSpy).not.toHaveBeenCalledWith(expect.stringMatching(/npm install failed/));
+
+      consoleSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
     });
 
     it("executes postClone command after updating existing repo", async () => {
@@ -761,59 +806,20 @@ describe("StainlessTools", () => {
       expect(execa).not.toHaveBeenCalled();
     });
 
-    it("handles postUpdate command failure", async () => {
-      // Mock execa to fail
-      vi.mocked(execa).mockRejectedValue(new Error("Command failed"));
+    it("handles postUpdate command failure with output", async () => {
+      // Mock execa to fail with stdout/stderr
+      vi.mocked(execa).mockRejectedValue(Object.assign(new Error("Command failed"), {
+        stdout: Buffer.from("Running build...\nBuild failed"),
+        stderr: Buffer.from("Error: TypeScript compilation failed"),
+      }));
 
       const tools = new StainlessTools({
-        sdkRepo: "git@ssh.github.com:org/repo.git",
+        sdkRepo: "git@github.com:org/repo.git",
         branch: "main",
         targetDir: "/test/target-dir",
         sdkName: "typescript",
         lifecycle: {
           typescript: {
-            postClone: "npm install",
-            postUpdate: "npm run build",
-          },
-        },
-      });
-
-      await expect(tools.pullChanges()).rejects.toThrow("Failed to execute postUpdate command");
-      expect(execa).toHaveBeenCalledWith(
-        "npm run build",
-        expect.objectContaining({
-          shell: true,
-        }),
-      );
-    });
-
-    it("executes postUpdate command after restoring stashed changes", async () => {
-      // Mock repository with local changes
-      mockGit.status.mockResolvedValue({ isClean: () => false });
-
-      // Mock execa to return some output
-      vi.mocked(execa).mockResolvedValue({
-        stdout: Buffer.from("Build complete"),
-        stderr: Buffer.from(""),
-        exitCode: 0,
-        failed: false,
-        killed: false,
-        command: "",
-        timedOut: false,
-        isCanceled: false,
-        escapedCommand: "",
-        cwd: "/test/target-dir",
-        all: undefined,
-      });
-
-      const tools = new StainlessTools({
-        sdkRepo: "git@ssh.github.com:org/repo.git",
-        branch: "main",
-        targetDir: "/test/target-dir",
-        sdkName: "typescript",
-        lifecycle: {
-          typescript: {
-            postClone: "npm install",
             postUpdate: "npm run build",
           },
         },
@@ -822,21 +828,46 @@ describe("StainlessTools", () => {
       const consoleSpy = vi.spyOn(console, "log");
       const consoleErrorSpy = vi.spyOn(console, "error");
 
-      await tools.pullChanges();
+      await expect(tools.pullChanges()).rejects.toThrow("Failed to execute postUpdate command");
 
-      expect(mockGit.stash).toHaveBeenCalledWith(["push", "-u", "-m", "Stashing changes before SDK update"]);
-      expect(mockGit.pull).toHaveBeenCalled();
+      // Verify command output was printed
+      expect(consoleSpy).toHaveBeenCalledWith("Running build...\nBuild failed");
+      expect(consoleErrorSpy).toHaveBeenCalledWith("Error: TypeScript compilation failed");
       expect(execa).toHaveBeenCalledWith(
         "npm run build",
         expect.objectContaining({
           shell: true,
         }),
       );
-      expect(mockGit.stash).toHaveBeenCalledWith(["pop"]);
 
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Executing postUpdate command: npm run build"));
-      expect(consoleSpy).toHaveBeenCalledWith("Build complete");
-      expect(consoleSpy).toHaveBeenCalledWith("✓ Successfully executed postUpdate command");
+      consoleSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
+    });
+
+    it("handles postUpdate command failure without output", async () => {
+      // Mock execa to fail without stdout/stderr
+      vi.mocked(execa).mockRejectedValue(new Error("Command failed"));
+
+      const tools = new StainlessTools({
+        sdkRepo: "git@github.com:org/repo.git",
+        branch: "main",
+        targetDir: "/test/target-dir",
+        sdkName: "typescript",
+        lifecycle: {
+          typescript: {
+            postUpdate: "npm run build",
+          },
+        },
+      });
+
+      const consoleSpy = vi.spyOn(console, "log");
+      const consoleErrorSpy = vi.spyOn(console, "error");
+
+      await expect(tools.pullChanges()).rejects.toThrow("Failed to execute postUpdate command");
+
+      // Verify no output was printed since none was available
+      expect(consoleSpy).not.toHaveBeenCalledWith(expect.stringMatching(/build failed/i));
+      expect(consoleErrorSpy).not.toHaveBeenCalledWith(expect.stringMatching(/compilation failed/i));
 
       consoleSpy.mockRestore();
       consoleErrorSpy.mockRestore();

@@ -283,6 +283,12 @@ export class StainlessTools {
               if (stderr) console.error(stderr.toString());
               console.log("✓ Successfully executed postClone command");
             } catch (error) {
+              // Print error output if available
+              if (error instanceof Error && 'stdout' in error) {
+                const { stdout, stderr } = error as { stdout?: Buffer; stderr?: Buffer };
+                if (stdout) console.log(stdout.toString());
+                if (stderr) console.error(stderr.toString());
+              }
               // Throw postClone error directly since it's already a StainlessError
               throw new StainlessError(`Failed to execute postClone command: ${postCloneCommand}`, error);
             }
@@ -437,6 +443,12 @@ export class StainlessTools {
             if (stderr) console.error(stderr.toString());
             console.log("✓ Successfully executed postUpdate command");
           } catch (error) {
+            // Print error output if available
+            if (error instanceof Error && 'stdout' in error) {
+              const { stdout, stderr } = error as { stdout?: Buffer; stderr?: Buffer };
+              if (stdout) console.log(stdout.toString());
+              if (stderr) console.error(stderr.toString());
+            }
             throw new StainlessError(`Failed to execute postUpdate command: ${postUpdateCommand}`, error);
           }
         }
