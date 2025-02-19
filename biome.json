@@ -17,7 +17,8 @@
         "noDelete": "off"
       },
       "complexity": {
-        "useLiteralKeys": "off"
+        "useLiteralKeys": "off",
+        "noForEach": "off"
       },
       "correctness": {
         "noUnusedImports": "error"
