@@ -374,7 +374,9 @@ describe("StainlessTools", () => {
         }),
       );
 
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Executing postClone command: npm install && npm run build"));
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Executing postClone command: npm install && npm run build"),
+      );
       expect(consoleSpy).toHaveBeenCalledWith("Installing dependencies...\nBuild complete");
       expect(consoleErrorSpy).toHaveBeenCalledWith("Some warning message");
       expect(consoleSpy).toHaveBeenCalledWith("✓ Successfully executed postClone command");
@@ -409,10 +411,12 @@ describe("StainlessTools", () => {
       mockGit.revparse.mockRejectedValue(new Error("not a git repo"));
 
       // Mock execa to fail with stdout/stderr
-      vi.mocked(execa).mockRejectedValue(Object.assign(new Error("Command failed"), {
-        stdout: Buffer.from("Some build output"),
-        stderr: Buffer.from("Error: npm install failed"),
-      }));
+      vi.mocked(execa).mockRejectedValue(
+        Object.assign(new Error("Command failed"), {
+          stdout: Buffer.from("Some build output"),
+          stderr: Buffer.from("Error: npm install failed"),
+        }),
+      );
 
       const toolsWithLifecycle = new StainlessTools({
         sdkRepo: "git@github.com:org/repo.git",
@@ -430,7 +434,7 @@ describe("StainlessTools", () => {
       const consoleErrorSpy = vi.spyOn(console, "error");
 
       await expect(toolsWithLifecycle.clone()).rejects.toThrow("Failed to execute postClone command");
-      
+
       // Verify command output was printed
       expect(consoleSpy).toHaveBeenCalledWith("Some build output");
       expect(consoleErrorSpy).toHaveBeenCalledWith("Error: npm install failed");
@@ -468,7 +472,7 @@ describe("StainlessTools", () => {
       const consoleErrorSpy = vi.spyOn(console, "error");
 
       await expect(toolsWithLifecycle.clone()).rejects.toThrow("Failed to execute postClone command");
-      
+
       // Verify no output was printed since none was available
       expect(consoleSpy).not.toHaveBeenCalledWith(expect.stringMatching(/build output/));
       expect(consoleErrorSpy).not.toHaveBeenCalledWith(expect.stringMatching(/npm install failed/));
@@ -548,7 +552,9 @@ describe("StainlessTools", () => {
         }),
       );
 
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Executing postClone command: echo $STAINLESS_TOOLS_SDK_PATH"));
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Executing postClone command: echo $STAINLESS_TOOLS_SDK_PATH"),
+      );
       expect(consoleSpy).toHaveBeenCalledWith("/test/target-dir");
       expect(consoleSpy).toHaveBeenCalledWith("✓ Successfully executed postClone command");
 
@@ -808,10 +814,12 @@ describe("StainlessTools", () => {
 
     it("handles postUpdate command failure with output", async () => {
       // Mock execa to fail with stdout/stderr
-      vi.mocked(execa).mockRejectedValue(Object.assign(new Error("Command failed"), {
-        stdout: Buffer.from("Running build...\nBuild failed"),
-        stderr: Buffer.from("Error: TypeScript compilation failed"),
-      }));
+      vi.mocked(execa).mockRejectedValue(
+        Object.assign(new Error("Command failed"), {
+          stdout: Buffer.from("Running build...\nBuild failed"),
+          stderr: Buffer.from("Error: TypeScript compilation failed"),
+        }),
+      );
 
       const tools = new StainlessTools({
         sdkRepo: "git@github.com:org/repo.git",
@@ -960,7 +968,9 @@ describe("StainlessTools", () => {
         }),
       );
 
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Executing postUpdate command: echo $STAINLESS_TOOLS_SDK_REPO_NAME"));
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Executing postUpdate command: echo $STAINLESS_TOOLS_SDK_REPO_NAME"),
+      );
       expect(consoleSpy).toHaveBeenCalledWith("python");
       expect(consoleSpy).toHaveBeenCalledWith("✓ Successfully executed postUpdate command");
 

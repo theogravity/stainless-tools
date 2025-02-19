@@ -1,12 +1,12 @@
 import * as fs from "node:fs/promises";
 import { watch } from "chokidar";
 import type { FSWatcher } from "chokidar";
+import { execa } from "execa";
 import type { Ora } from "ora";
 import simpleGit, { type SimpleGit } from "simple-git";
 import { StainlessApi } from "./StainlessApi.js";
 import { StainlessError } from "./StainlessError.js";
 import { getTargetDir, isValidGitUrl } from "./utils.js";
-import { execa } from "execa";
 
 interface StainlessToolsOptions {
   sdkRepo: string;
@@ -284,7 +284,7 @@ export class StainlessTools {
               console.log("✓ Successfully executed postClone command");
             } catch (error) {
               // Print error output if available
-              if (error instanceof Error && 'stdout' in error) {
+              if (error instanceof Error && "stdout" in error) {
                 const { stdout, stderr } = error as { stdout?: Buffer; stderr?: Buffer };
                 if (stdout) console.log(stdout.toString());
                 if (stderr) console.error(stderr.toString());
@@ -444,7 +444,7 @@ export class StainlessTools {
             console.log("✓ Successfully executed postUpdate command");
           } catch (error) {
             // Print error output if available
-            if (error instanceof Error && 'stdout' in error) {
+            if (error instanceof Error && "stdout" in error) {
               const { stdout, stderr } = error as { stdout?: Buffer; stderr?: Buffer };
               if (stdout) console.log(stdout.toString());
               if (stderr) console.error(stderr.toString());
