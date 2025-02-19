@@ -11,6 +11,20 @@ vi.mock("chokidar", () => ({
   }),
 }));
 
+// Get the mocked StainlessTools instance
+const mockStainlessToolsInstance = {
+  clone: vi.fn().mockResolvedValue(undefined),
+  hasNewChanges: vi.fn().mockResolvedValue(true),
+  pullChanges: vi.fn().mockResolvedValue(undefined),
+  cleanup: vi.fn(),
+  waitForRemoteBranch: vi.fn().mockResolvedValue(undefined),
+};
+
+// Mock StainlessTools
+vi.mock("../StainlessTools", () => ({
+  StainlessTools: vi.fn().mockImplementation(() => mockStainlessToolsInstance),
+}));
+
 // Mock StainlessApi
 const mockPublish = vi.fn().mockResolvedValue(undefined);
 vi.mock("../StainlessApi", () => ({
@@ -39,6 +53,7 @@ const mockGit = {
   stash: vi.fn(),
   revparse: vi.fn(),
   getRemotes: vi.fn(),
+  branch: vi.fn(),
 };
 
 vi.mock("simple-git", () => ({
@@ -67,6 +82,12 @@ describe("generateAndWatchSDK", () => {
     mockGit.stash.mockReset();
     mockGit.revparse.mockReset();
     mockGit.getRemotes.mockReset();
+    mockGit.branch.mockReset();
+    mockStainlessToolsInstance.clone.mockReset();
+    mockStainlessToolsInstance.hasNewChanges.mockReset();
+    mockStainlessToolsInstance.pullChanges.mockReset();
+    mockStainlessToolsInstance.cleanup.mockReset();
+    mockStainlessToolsInstance.waitForRemoteBranch.mockReset();
 
     // Set default successful responses
     mockGit.status.mockResolvedValue({ isClean: () => true });
@@ -78,6 +99,9 @@ describe("generateAndWatchSDK", () => {
     mockGit.pull.mockResolvedValue(undefined);
     mockGit.revparse.mockResolvedValue(undefined);
     mockGit.getRemotes.mockResolvedValue([{ name: "origin", refs: { fetch: "git@ssh.github.com:org/repo.git" } }]);
+    mockGit.branch.mockResolvedValue({
+      all: ["main"]
+    });
 
     // Setup mock filesystem
     mock({
@@ -117,14 +141,18 @@ describe("generateAndWatchSDK", () => {
         return { latest: { hash: "" } };
       });
 
+    // Set up StainlessTools mock behavior
+    mockStainlessToolsInstance.hasNewChanges.mockResolvedValue(true);
+
     const cleanup = await generateAndWatchSDK(options);
 
     // Wait for a poll cycle
     await new Promise((resolve) => setTimeout(resolve, 150));
 
     // Verify that changes were pulled
-    expect(mockGit.fetch).toHaveBeenCalled();
-    expect(mockGit.pull).toHaveBeenCalledWith("origin", "main");
+    expect(mockStainlessToolsInstance.clone).toHaveBeenCalled();
+    expect(mockStainlessToolsInstance.hasNewChanges).toHaveBeenCalled();
+    expect(mockStainlessToolsInstance.pullChanges).toHaveBeenCalled();
 
     // Verify console output
     expect(consoleSpy).toHaveBeenCalledWith("\nDetected new changes in SDK repository, pulling updates...");

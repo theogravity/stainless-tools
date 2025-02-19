@@ -107,7 +107,8 @@ interface StainlessConfig {
   };
 
   defaults?: {
-    // Default branch name for all SDKs (required if not using cli flag or the STAINLESS_SDK_BRANCH environment variable)
+    // Default branch name for all SDKs (optional)
+    // If not specified, will use existing branch in target directory or generate a new cli/ branch
     // Typically use 'main' for production and '<username>/dev' for staging
     // See: https://app.stainlessapi.com/docs/guides/branches
     branch?: string;
@@ -302,7 +303,7 @@ Arguments:
   sdk-name     Name of the SDK to generate
 
 Options:
-  -b, --branch <name>                Branch name to use (required if not in config)
+  -b, --branch <name>                Branch name to use (optional)
   -t, --target-dir <dir>             Target directory for the SDK (required if not in config)
   -o, --open-api-file <file>         OpenAPI specification file
   -c, --config <file>                Configuration file path
@@ -316,16 +317,16 @@ Options:
 
 ```bash
 # Using staging URL (default) with config file fully defined
+# Will use branch from config, env var, existing directory, or generate new cli/ branch
 stainless-tools generate typescript
 
-# Using production URL (typically with main branch)
+# Using production URL with main branch
 stainless-tools generate typescript \
   --prod \
   --branch main
 
 # Minimal required options (when no defaults defined in config file)
 stainless-tools generate \
-  --branch yourusername/dev \
   --open-api-file ./api-spec.json \
   --project-name my-project \
   typescript
@@ -348,10 +349,12 @@ Each SDK supports two environments with separate repositories:
 - `staging`: For development and testing, typically using `yourusername/dev` branch
 - `prod`: For production releases, typically using `main` branch
 
-The branch name must be specified through one of these methods (in order of precedence):
+The branch name is completely optional and will be determined in this order:
 1. Command line: `--branch yourusername/dev`
 2. Environment: `STAINLESS_SDK_BRANCH=yourusername/dev`
 3. Config defaults: `defaults.branch` in your config file
+4. Current branch in target directory (if it exists)
+5. Generate a new random `cli/<random-hex>` branch
 
 Example configuration:
 ```json5
@@ -363,7 +366,7 @@ Example configuration:
     }
   },
   "defaults": {
-    "branch": "yourusername/dev"  // Default branch if not specified via CLI or env
+    "branch": "yourusername/dev"  // Optional default branch
   }
 }
 ```
@@ -371,43 +374,75 @@ Example configuration:
 Basic usage:
 ```bash
 # Development: Uses staging URL (default)
+# Will use branch from config, env var, or generate a new cli/ branch
 stainless-tools generate typescript
 
-# Production: Uses prod URL with main branch
+# Production: Uses prod URL with explicit branch
 stainless-tools generate typescript \
   --prod \
   --branch main
+
+# Using existing branch from target directory
+# If ./sdks/typescript exists and is on branch 'feature/new-api',
+# this will continue using that branch
+stainless-tools generate typescript
 ```
 
 ### How It Works
 
 When you run `generate`:
-1. It checks if the SDK repository exists in your target directory:
-    - If the directory doesn't exist, it clones the repository fresh against the specified `branch`
-    - If the directory exists and contains the correct repository, it updates it
-    - If the directory exists but contains a different repository, it fails with an error asking you to remove it manually
+
+1. Branch discovery:
+   - Checks for branch name in this order:
+     1. Command-line flag (`--branch`)
+     2. Environment variable (`STAINLESS_SDK_BRANCH`)
+     3. Configuration default (`defaults.branch`)
+     4. Current branch in target directory (if it exists)
+     5. Generates a new random `cli/<random-hex>` branch
 
 2. If you provide an OpenAPI file (`--open-api-file`) or Stainless config file (`--stainless-config-file`):
-    - It publishes these files to the Stainless Config repo via the Stainless API
-    - The API processes the files and generates the SDK in the *staging* branch of the SDK repo
+   - Publishes these files to the Stainless Config repo via the Stainless API
+   - The API processes the files and generates the SDK in the specified branch
 
-3. Continuously monitors for changes:
-    - Pulls new SDK generation changes when detected
-    - If you have local changes in your SDK clone:
-        - Your changes are automatically stashed before pulling
-        - After pulling, your changes are reapplied
-        - If there are conflicts during reapply:
-            - Your changes are preserved in the stash
-            - You'll get instructions for resolving conflicts manually
-    - When the OpenAPI or Stainless config files are updated:
-        - Changes are automatically published to the Stainless Config repo
-        - The API regenerates the SDK
-        - New changes are pulled into your local clone (with stashing if needed)
+3. Repository initialization:
+   - If the directory doesn't exist:
+     - Creates and initializes a new git repository
+     - Waits for the branch to exist if it doesn't yet
+     - Once the branch exists, checks it out fresh
+   - If the directory exists:
+     - Verifies it's the correct repository
+     - If on a different branch:
+       - Stashes any local changes
+       - Waits for the target branch if it doesn't exist
+       - Switches to the branch once it exists
+       - Restores any stashed changes
+     - Pulls latest changes
 
-4. Handles interruptions gracefully:
-    - Ctrl+C stops the monitoring process
-    - Any stashed changes are restored before exit
-    - Cleanup is performed to ensure no watchers are left running
+4. Continuous monitoring:
+   - Watches for OpenAPI and config file changes:
+     - Automatically publishes changes to Stainless
+     - Waits for SDK regeneration
+   - Monitors SDK repository for updates:
+     - Pulls new changes when detected
+     - Handles local changes by:
+       - Stashing before updates
+       - Reapplying after updates
+       - Providing clear instructions if conflicts occur
+   - Executes lifecycle hooks:
+     - Runs `postClone` after initial setup
+     - Runs `postUpdate` after pulling changes
+
+5. Handles interruptions gracefully:
+   - Ctrl+C stops the monitoring process
+   - Restores any stashed changes before exit
+   - Cleans up watchers and temporary state
+
+This workflow ensures:
+- Seamless coordination with CI/CD systems that create branches
+- Safe handling of local changes during updates
+- Proper sequencing of publish and branch operations
+- Clear feedback during long-running operations
+- Graceful handling of all error cases
 
 ## Publish Specs Command
 
@@ -422,12 +457,12 @@ Arguments:
   sdk-name     Name of the SDK to publish specifications for
 
 Options:
-  -b, --branch <branch>                Git branch to use
+  -b, --branch <branch>                Git branch to use (optional)
   -t, --target-dir <dir>               Directory where the SDK will be generated
   -o, --open-api-file <file>           Path to OpenAPI specification file
   -c, --config <file>                  Path to configuration file
   -s, --stainless-config-file <file>   Path to Stainless-specific configuration
-  -p, --project-name <name>               Name of the project in Stainless
+  -p, --project-name <name>            Name of the project in Stainless
   -g, --guess-config                   Use AI to guess configuration
   --prod                               Use production URLs instead of staging
 ```
@@ -435,14 +470,16 @@ Options:
 ### Examples
 
 ```bash
+# Basic usage - will use branch from config, env var, or generate new cli/ branch
 stainless-tools publish-specs typescript
 
-# With custom configuration
+# With custom configuration and explicit branch
 stainless-tools publish-specs typescript \
+  --branch main \
   --open-api-file openapi.json \
   --config config.json
 
-# With project name
+# Minimal required options
 stainless-tools publish-specs \
   --project-name my-project \
   --open-api-file openapi.json \
@@ -453,6 +490,12 @@ stainless-tools publish-specs \
   --stainless-config-file stainless.config.json \
   --open-api-file openapi.json \
   typescript
+
+# Production use with explicit branch
+stainless-tools publish-specs typescript \
+  --prod \
+  --branch main \
+  --open-api-file openapi.json
 ```
 
 When you run `publish-specs`:

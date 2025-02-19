@@ -3,6 +3,29 @@ import * as path from "node:path";
 import { StainlessError } from "../StainlessError.js";
 import { type StainlessConfig, loadConfig } from "../config.js";
 import type { SdkCommandOptions } from "./types.js";
+import * as crypto from "node:crypto";
+import simpleGit from "simple-git";
+import { getTargetDir } from "../utils.js";
+
+/**
+ * Generates a random branch name for the CLI
+ */
+function generateRandomBranchName(): string {
+  return `cli/${crypto.randomBytes(4).toString('hex')}`;
+}
+
+/**
+ * Gets the current branch name from a git repository
+ */
+async function getCurrentBranch(targetDir: string): Promise<string | undefined> {
+  try {
+    const git = simpleGit(targetDir);
+    const branchSummary = await git.branch();
+    return branchSummary.current;
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * Validates and processes command options, loading configuration and checking required fields
@@ -36,22 +59,31 @@ export async function validateAndProcessOptions(
     );
   }
 
-  // Determine branch to use
-  const branch = options.branch || process.env.STAINLESS_SDK_BRANCH || config.defaults?.branch;
+  const baseDir = process.cwd();
+  const targetDir = path.resolve(
+    baseDir,
+    getTargetDir({
+      targetDir: options.targetDir || config.defaults?.targetDir || "./sdks/{sdk}",
+      sdkName,
+      env: mode,
+      branch: "temp", // Temporary value since we don't have the branch yet
+    }),
+  );
+
+  // Determine branch to use in this order:
+  // 1. User-specified branch flag
+  // 2. Environment variable
+  // 3. Config default
+  // 4. Current branch in target directory if it exists
+  // 5. Generate a new cli/ branch
+  let branch = options.branch || process.env.STAINLESS_SDK_BRANCH || config.defaults?.branch;
+  
   if (!branch) {
-    throw new StainlessError(
-      "Branch name is required. Provide it via --branch option, STAINLESS_SDK_BRANCH environment variable, or in the configuration defaults.",
-    );
+    const currentBranch = await getCurrentBranch(targetDir);
+    branch = currentBranch || generateRandomBranchName();
   }
 
   // Resolve OpenAPI specification file path
-  const baseDir = process.cwd();
-  if (!options["open-api-file"] && !config.defaults?.openApiFile) {
-    throw new StainlessError(
-      "OpenAPI specification file is required. Provide it via --open-api-file option or in the configuration defaults.",
-    );
-  }
-
   const openApiFile = path.resolve(baseDir, ".", options["open-api-file"] || config.defaults?.openApiFile || "");
 
   // Resolve Stainless configuration file path if provided
