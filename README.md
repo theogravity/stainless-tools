@@ -20,6 +20,9 @@ A TypeScript library and CLI tool for managing [Stainless](https://www.stainless
   - [Usage](#usage)
   - [Branch Configuration and Environments](#branch-configuration-and-environments)
   - [How It Works](#how-it-works)
+- [Publish Specs Command](#publish-specs-command)
+  - [Usage](#usage-1)
+  - [How It Works](#how-it-works-1)
 
 ## Features
 
@@ -299,15 +302,15 @@ Arguments:
   sdk-name     Name of the SDK to generate
 
 Options:
-  -b, --branch <n>                Branch name to use (required if not in config)
-  -t, --target-dir <dir>          Target directory for the SDK (required if not in config)
-  -o, --open-api-file <file>      Required: OpenAPI specification file
-  -c, --config <file>             Configuration file path
-  -s, --stainless-config-file <file> Optional: Stainless configuration file
-  -p, --project-name <n>          Project name for Stainless API (required when using --open-api-file)
-  -g, --guess-config              Uses the "Guess with AI" command from the Stainless Studio for the Stainless Config if enabled
-  --prod                          Use production URLs instead of staging URLs
-  -h, --help                      Display help for command
+  -b, --branch <name>                Branch name to use (required if not in config)
+  -t, --target-dir <dir>             Target directory for the SDK (required if not in config)
+  -o, --open-api-file <file>         OpenAPI specification file
+  -c, --config <file>                Configuration file path
+  -s, --stainless-config-file <file> Stainless configuration file
+  -p, --project-name <name>          Project name for Stainless API (required if not in config)
+  -g, --guess-config                 Uses the "Guess with AI" command from the Stainless Studio for the Stainless Config if enabled
+  --prod                             Use production URLs instead of staging URLs
+  -h, --help                         Display help for command
 
 ### Examples
 
@@ -405,3 +408,62 @@ When you run `generate`:
     - Ctrl+C stops the monitoring process
     - Any stashed changes are restored before exit
     - Cleanup is performed to ensure no watchers are left running
+
+## Publish Specs Command
+
+The `publish-specs` command allows you to publish your OpenAPI specification and Stainless configuration directly to Stainless, making it easy to update your SDK configuration without using the web interface.
+
+### Usage
+
+```bash
+stainless-tools publish-specs [options] <sdk-name>
+
+Arguments:
+  sdk-name     Name of the SDK to publish specifications for
+
+Options:
+  -b, --branch <branch>                Git branch to use
+  -t, --target-dir <dir>               Directory where the SDK will be generated
+  -o, --open-api-file <file>           Path to OpenAPI specification file
+  -c, --config <file>                  Path to configuration file
+  -s, --stainless-config-file <file>   Path to Stainless-specific configuration
+  -p, --project-name <name>               Name of the project in Stainless
+  -g, --guess-config                   Use AI to guess configuration
+  --prod                               Use production URLs instead of staging
+```
+
+### Examples
+
+```bash
+stainless-tools publish-specs typescript
+
+# With custom configuration
+stainless-tools publish-specs typescript \
+  --open-api-file openapi.json \
+  --config config.json
+
+# With project name
+stainless-tools publish-specs \
+  --project-name my-project \
+  --open-api-file openapi.json \
+  typescript
+
+# With Stainless-specific configuration
+stainless-tools publish-specs \
+  --stainless-config-file stainless.config.json \
+  --open-api-file openapi.json \
+  typescript
+```
+
+When you run `publish-specs`:
+
+1. The command validates your input and configuration
+2. Reads the OpenAPI specification file
+3. Reads the Stainless configuration file (if provided)
+4. Validates the configuration format
+5. Publishes the files to Stainless using your API key
+
+The publish-specs command is particularly useful for:
+- CI/CD pipelines where you want to automate SDK updates
+- Local development when you want to quickly update your SDK configuration
+- Testing new API changes before committing them to production

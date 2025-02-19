@@ -9,6 +9,7 @@
 import { config } from "@dotenvx/dotenvx";
 import { Command } from "commander";
 import { createGenerateCommand } from "./cli/commands/generate.js";
+import { createPublishSpecsCommand } from "./cli/commands/publish-specs.js";
 
 config({
   quiet: true,
@@ -27,6 +28,9 @@ program
 
 // Add the generate command
 program.addCommand(createGenerateCommand());
+
+// Add the publish-specs command
+program.addCommand(createPublishSpecsCommand());
 
 // Only parse arguments when running as the main module
 if (require.main === module) {

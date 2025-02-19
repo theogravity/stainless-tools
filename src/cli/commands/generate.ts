@@ -1,23 +1,11 @@
 import * as path from "node:path";
-import ora from "ora";
 import { Command } from "commander";
-import { loadConfig } from "../../config.js";
+import ora from "ora";
+import { StainlessError } from "../../StainlessError.js";
 import { generateAndWatchSDK } from "../../lib.js";
 import { getTargetDir } from "../../utils.js";
-
-/**
- * Interface defining the options available for SDK generation
- */
-export interface GenerateOptions {
-  branch?: string; // Git branch to use
-  targetDir?: string; // Directory where the SDK will be generated
-  "open-api-file"?: string; // Path to OpenAPI specification file
-  config?: string; // Path to configuration file
-  "stainless-config-file"?: string; // Path to Stainless-specific configuration
-  projectName?: string; // Name of the project in Stainless
-  "guess-config"?: boolean; // Whether to use AI to guess configuration
-  prod?: boolean; // Whether to use production URLs
-}
+import type { SdkCommandOptions } from "../types.js";
+import { validateAndProcessOptions } from "../utils.js";
 
 /**
  * Creates and configures the generate command
@@ -32,10 +20,10 @@ export function createGenerateCommand(): Command {
     .option("-o, --open-api-file <file>", "Path to OpenAPI specification file")
     .option("-c, --config <file>", "Path to configuration file")
     .option("-s, --stainless-config-file <file>", "Path to Stainless-specific configuration")
-    .option("-p, --project-name <n>", "Name of the project in Stainless")
+    .option("-p, --project-name <name>", "Name of the project in Stainless")
     .option("-g, --guess-config", "Use AI to guess configuration")
     .option("--prod", "Use production URLs instead of staging")
-    .action(async (sdkName: string, options: GenerateOptions) => {
+    .action(async (sdkName: string, options: SdkCommandOptions) => {
       const exitCode = await generateAction(sdkName, options);
       if (exitCode !== 0) {
         process.exit(exitCode);
@@ -49,7 +37,7 @@ export function createGenerateCommand(): Command {
  * @param options - Configuration options for generation
  * @returns Promise<number> - Exit code (0 for success, 1 for failure)
  */
-export async function generateAction(sdkName: string, options: GenerateOptions): Promise<number> {
+export async function generateAction(sdkName: string, options: SdkCommandOptions): Promise<number> {
   const spinner = ora("Loading configuration...").start();
   let cleanup: (() => Promise<void>) | undefined;
 
@@ -72,81 +60,31 @@ export async function generateAction(sdkName: string, options: GenerateOptions):
   process.on("SIGTERM", handleExit);
 
   try {
-    const config = await loadConfig(options.config);
-    const sdkConfig = config.stainlessSdkRepos[sdkName];
-
-    if (!sdkConfig) {
-      throw new Error(`SDK "${sdkName}" not found in configuration`);
-    }
-
-    const mode = options.prod ? "prod" : "staging";
-    const sdkRepo = sdkConfig[mode];
-
-    if (!sdkRepo) {
-      throw new Error(
-        `${mode === "prod" ? "Production" : "Staging"} URL not defined for SDK "${sdkName}". ` +
-          `Please add a "${mode}" URL to the configuration.`,
-      );
-    }
-
-    // Determine branch to use
-    const branch = options.branch || process.env.STAINLESS_SDK_BRANCH || config.defaults?.branch;
-    if (!branch) {
-      throw new Error(
-        "Branch name is required. Provide it via --branch option, STAINLESS_SDK_BRANCH environment variable, or in the configuration defaults.",
-      );
-    }
+    // Validate and process options
+    const { branch, openApiFile, stainlessConfigFile, projectName, guessConfig, sdkRepo, config } =
+      await validateAndProcessOptions(sdkName, options);
 
     // Resolve target directory path
     const baseDir = process.cwd();
-    let targetDir: string;
-    if (options.targetDir || config.defaults?.targetDir) {
-      targetDir = path.resolve(baseDir, ".", options.targetDir || config.defaults?.targetDir || "");
-    } else {
-      // Extract repository name from Git URL for default target directory
-      const gitUrlMatch = sdkRepo.match(/[:/]([^/]+?)(?:\.git)?$/);
-      const repoName = gitUrlMatch ? gitUrlMatch[1] : sdkName;
-      targetDir = path.resolve(baseDir, repoName);
-    }
-
-    // Resolve OpenAPI specification file path
-    let openApiFile: string;
-    if (options["open-api-file"] || config.defaults?.openApiFile) {
-      openApiFile = path.resolve(baseDir, ".", options["open-api-file"] || config.defaults?.openApiFile || "");
-    } else {
-      throw new Error(
-        "OpenAPI specification file is required. Provide it via --open-api-file option or in the configuration defaults.",
-      );
-    }
-
-    // Resolve Stainless configuration file path if provided
-    let stainlessConfigFile: string | undefined;
-    if (options["stainless-config-file"] || config.defaults?.stainlessConfigFile) {
-      stainlessConfigFile = path.resolve(
-        baseDir,
-        ".",
-        options["stainless-config-file"] || config.defaults?.stainlessConfigFile || "",
-      );
-      console.log(`Stainless config file: ${stainlessConfigFile}`);
-    }
-
-    // Validate project name
-    const projectName = options.projectName || config.defaults?.projectName;
-    if (!projectName) {
-      throw new Error(
-        "Project name is required when using OpenAPI file. Provide it via --project-name option or in the configuration defaults.",
-      );
-    }
+    const targetDir = path.resolve(
+      baseDir,
+      getTargetDir({
+        targetDir: options.targetDir || config.defaults?.targetDir || "./sdks/{sdk}",
+        sdkName,
+        env: options.prod ? "prod" : "staging",
+        branch,
+      }),
+    );
 
     // Log configuration details
-    console.log(`\nSDK Repository (${mode}): ${sdkRepo}`);
+    console.log(`\nSDK Repository (${options.prod ? "prod" : "staging"}): ${sdkRepo}`);
     if (openApiFile || stainlessConfigFile) {
       console.log(`Project name: ${projectName}`);
     }
 
     console.log("\nWatching for changes in the SDK repository...");
     console.log(`Branch: ${branch}`);
-    console.log(`Target directory: ${getTargetDir({ targetDir, sdkName, env: mode, branch })}`);
+    console.log(`Target directory: ${targetDir}`);
     if (openApiFile) {
       console.log(`OpenAPI file: ${openApiFile}`);
     }
@@ -167,20 +105,25 @@ export async function generateAction(sdkName: string, options: GenerateOptions):
       spinner,
       stainlessApiOptions: {
         projectName,
-        guessConfig: options["guess-config"] || config.defaults?.guessConfig,
+        guessConfig,
       },
-      env: mode,
-      lifecycle: config.lifecycle
+      env: options.prod ? "prod" : "staging",
+      lifecycle: config.lifecycle,
     });
 
-    spinner.succeed(`SDK "${sdkName}" is ready and watching for changes`);
     return 0;
   } catch (error) {
-    spinner.fail((error as Error).message);
+    if (error instanceof StainlessError) {
+      spinner.fail(error.message);
+    } else if (error instanceof Error) {
+      spinner.fail(error.message);
+    } else {
+      spinner.fail(`Unexpected error: ${error}`);
+    }
     return 1;
   } finally {
     // Cleanup: remove signal handlers
     process.off("SIGINT", handleExit);
     process.off("SIGTERM", handleExit);
   }
-} 
+}

@@ -2,9 +2,9 @@ import { EventEmitter } from "node:events";
 import type * as path from "node:path";
 import mock from "mock-fs";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { generateAction, createGenerateCommand } from "../generate";
 import { loadConfig } from "../../../config";
 import { generateAndWatchSDK } from "../../../lib";
+import { createGenerateCommand, generateAction } from "../generate";
 
 // Mock dependencies
 vi.mock("../../../config");
@@ -96,7 +96,7 @@ describe("generate command", () => {
         { flags: "-o, --open-api-file <file>", description: "Path to OpenAPI specification file" },
         { flags: "-c, --config <file>", description: "Path to configuration file" },
         { flags: "-s, --stainless-config-file <file>", description: "Path to Stainless-specific configuration" },
-        { flags: "-p, --project-name <n>", description: "Name of the project in Stainless" },
+        { flags: "-p, --project-name <name>", description: "Name of the project in Stainless" },
         { flags: "-g, --guess-config", description: "Use AI to guess configuration" },
         { flags: "--prod", description: "Use production URLs instead of staging" },
       ];
@@ -122,13 +122,13 @@ describe("generate command", () => {
   beforeEach(() => {
     // Reset all mocks
     vi.clearAllMocks();
-    
+
     // Clear console output tracking
     consoleOutput = [];
 
     // Setup environment
     mockProcess.env = {
-      STAINLESS_API_KEY: "test-api-key"
+      STAINLESS_API_KEY: "test-api-key",
     };
 
     // Restore real filesystem before setting up mock
@@ -140,17 +140,17 @@ describe("generate command", () => {
         // OpenAPI files
         "test-api.json": JSON.stringify({ openapi: "3.0.0" }),
         "custom-openapi.json": JSON.stringify({ openapi: "3.0.0" }),
-        "specs": {
+        specs: {
           "openapi.json": JSON.stringify({ openapi: "3.0.0" }),
         },
         // Config files
         "stainless-tools.config.json": JSON.stringify({ config: true }),
         // SDK directories
-        "sdks": {
+        sdks: {
           "test-sdk": {
             ".git": mock.directory(),
             "package.json": JSON.stringify({ name: "test-sdk" }),
-            "src": {
+            src: {
               "index.ts": "export const version = '1.0.0';",
             },
           },
@@ -160,18 +160,18 @@ describe("generate command", () => {
           },
         },
         // Target directories that should exist
-        "custom": {
+        custom: {
           "test-sdk": {
-            "path": mock.directory(),
+            path: mock.directory(),
           },
         },
-        "fixed": {
-          "path": {
-            "sdk": mock.directory(),
+        fixed: {
+          path: {
+            sdk: mock.directory(),
           },
         },
         // Node modules should exist for npm commands
-        "node_modules": mock.directory(),
+        node_modules: mock.directory(),
       },
     });
 
@@ -181,9 +181,9 @@ describe("generate command", () => {
       lifecycle: {
         "test-sdk": {
           postClone: "npm install && npm run build",
-          postUpdate: "npm run build"
-        }
-      }
+          postUpdate: "npm run build",
+        },
+      },
     });
   });
 
@@ -248,16 +248,26 @@ describe("generate command", () => {
       projectName: "test-project",
     });
 
-    expect(generateAndWatchSDK).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sdkName: "test-sdk",
-        sdkRepo: defaultMockConfig.stainlessSdkRepos["test-sdk"].staging,
-        branch: defaultMockConfig.defaults.branch,
-        openApiFile: expect.stringContaining("/specs/openapi.json"),
-        stainlessConfigFile: expect.stringContaining("/stainless-tools.config.json"),
-        targetDir: expect.stringContaining("/sdks/{sdk}"),
-      }),
-    );
+    expect(generateAndWatchSDK).toHaveBeenCalledWith({
+      sdkName: "test-sdk",
+      sdkRepo: defaultMockConfig.stainlessSdkRepos["test-sdk"].staging,
+      branch: defaultMockConfig.defaults.branch,
+      openApiFile: "/mock/test/dir/specs/openapi.json",
+      stainlessConfigFile: "/mock/test/dir/stainless-tools.config.json",
+      targetDir: "/mock/test/dir/sdks/test-sdk",
+      env: "staging",
+      lifecycle: {
+        "test-sdk": {
+          postClone: "npm install && npm run build",
+          postUpdate: "npm run build",
+        },
+      },
+      spinner: expect.any(Object),
+      stainlessApiOptions: {
+        projectName: "test-project",
+        guessConfig: false,
+      },
+    });
     expect(exitCode).toBe(0);
   });
 
@@ -271,15 +281,20 @@ describe("generate command", () => {
       projectName: "custom-project",
     });
 
-    expect(generateAndWatchSDK).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sdkName: "other-sdk",
-        sdkRepo: mockConfigWithoutDefaults.stainlessSdkRepos["other-sdk"].staging,
-        branch: "custom-branch",
-        targetDir: expect.stringContaining("/custom-dir"),
-        openApiFile: expect.stringContaining("/custom-openapi.json"),
-      }),
-    );
+    expect(generateAndWatchSDK).toHaveBeenCalledWith({
+      sdkName: "other-sdk",
+      sdkRepo: mockConfigWithoutDefaults.stainlessSdkRepos["other-sdk"].staging,
+      branch: "custom-branch",
+      targetDir: "/mock/test/dir/custom-dir",
+      openApiFile: "/mock/test/dir/custom-openapi.json",
+      env: "staging",
+      lifecycle: undefined,
+      spinner: expect.any(Object),
+      stainlessApiOptions: {
+        projectName: "custom-project",
+        guessConfig: false,
+      },
+    });
     expect(exitCode).toBe(0);
   });
 
@@ -291,15 +306,20 @@ describe("generate command", () => {
       projectName: "test-project",
     });
 
-    expect(generateAndWatchSDK).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sdkName: "test-sdk",
-        sdkRepo: mockConfigWithPartialDefaults.stainlessSdkRepos["test-sdk"].staging,
-        branch: mockConfigWithPartialDefaults.defaults.branch,
-        openApiFile: expect.stringContaining("/specs/openapi.json"),
-        targetDir: expect.stringContaining("/sdks/{sdk}"),
-      }),
-    );
+    expect(generateAndWatchSDK).toHaveBeenCalledWith({
+      sdkName: "test-sdk",
+      sdkRepo: mockConfigWithPartialDefaults.stainlessSdkRepos["test-sdk"].staging,
+      branch: mockConfigWithPartialDefaults.defaults.branch,
+      openApiFile: "/mock/test/dir/specs/openapi.json",
+      targetDir: "/mock/test/dir/sdks/test-sdk",
+      env: "staging",
+      lifecycle: undefined,
+      spinner: expect.any(Object),
+      stainlessApiOptions: {
+        projectName: "test-project",
+        guessConfig: false,
+      },
+    });
     expect(exitCode).toBe(0);
   });
 
@@ -359,9 +379,9 @@ describe("generate command", () => {
         lifecycle: {
           "test-sdk": {
             postClone: "npm install && npm run build",
-            postUpdate: "npm run build"
-          }
-        }
+            postUpdate: "npm run build",
+          },
+        },
       }),
     );
     expect(exitCode).toBe(0);
@@ -535,7 +555,7 @@ describe("generate command", () => {
     // Set up config with an SDK that only has prod URL
     const configWithProdOnly = {
       stainlessSdkRepos: {
-        "prod_only": {
+        prod_only: {
           prod: "git@github.com:org/prod-only-sdk.git",
         },
       },
@@ -559,7 +579,7 @@ describe("generate command", () => {
     // Set up config with an SDK that only has staging URL
     const configWithStagingOnly = {
       stainlessSdkRepos: {
-        "staging_only": {
+        staging_only: {
           staging: "git@github.com:org/staging-only-sdk.git",
         },
       },
@@ -673,4 +693,4 @@ describe("generate command", () => {
     expect(exitCode).toBe(0);
     expect(consoleOutput).toContain("Target directory: /mock/test/dir/fixed/path/sdk");
   });
-}); 
+});
