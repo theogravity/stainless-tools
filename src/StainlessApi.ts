@@ -105,6 +105,8 @@ export class StainlessApi {
         formData.append("guessConfig", "true");
       }
 
+      console.info("\nPublishing specifications to Stainless...");
+
       const response = await fetch(`${this.baseUrl}/api/spec`, {
         method: "POST",
         headers: {
@@ -126,6 +128,8 @@ export class StainlessApi {
         const errorMessage = `API Error (HTTP ${response.status}): ${errorInfo.message}${details}\nResponse: ${responseText}`;
         throw new StainlessError(errorMessage);
       }
+
+      console.info("\nSuccessfully published specifications to Stainless. This will not generate a new SDK if there are no actual changes.");
     } catch (err: unknown) {
       if (err instanceof StainlessError) {
         throw err;
