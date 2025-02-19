@@ -1,5 +1,22 @@
 # stainless-tools changelog
 
+## 3.4.0
+
+### Minor Changes
+
+- [#33](https://github.com/theogravity/stainless-tools/pull/33) [`430be8d`](https://github.com/theogravity/stainless-tools/commit/430be8d8ea06e4d45eb34ec92ee33fea392ad8f0) Thanks [@theogravity](https://github.com/theogravity)! - refactor: move generate code to own file
+
+- [#34](https://github.com/theogravity/stainless-tools/pull/34) [`3543614`](https://github.com/theogravity/stainless-tools/commit/3543614d1d0923dccbf6103b8e3ace1009cd30db) Thanks [@theogravity](https://github.com/theogravity)! - Add publish-specs command
+
+- [#36](https://github.com/theogravity/stainless-tools/pull/36) [`d859ce3`](https://github.com/theogravity/stainless-tools/commit/d859ce3f9f527cb12cc7bb3cb4ef399fd3b5af4d) Thanks [@theogravity](https://github.com/theogravity)! - Make the branch param optional. We will now automatically generate a branch in the format of `cli/<random hash>` if
+  none is specified.
+
+### Patch Changes
+
+- [#31](https://github.com/theogravity/stainless-tools/pull/31) [`04464e6`](https://github.com/theogravity/stainless-tools/commit/04464e61fcc7c011ae5c96b3443349025783b656) Thanks [@theogravity](https://github.com/theogravity)! - Log out lifecycle execution failures
+
+- [#35](https://github.com/theogravity/stainless-tools/pull/35) [`1d72b6f`](https://github.com/theogravity/stainless-tools/commit/1d72b6fd0fa242fecf0b08f5d42888d228ea1438) Thanks [@theogravity](https://github.com/theogravity)! - Add more logging around publishing files
+
 ## 3.3.3
 
 ### Patch Changes
