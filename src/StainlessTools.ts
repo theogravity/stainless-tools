@@ -392,7 +392,7 @@ export class StainlessTools {
           console.log("\nReapplying your local changes...");
           try {
             await this.sdkGit.stash(["pop"]);
-            console.log("✓ Successfully reapplied your local changes.");
+            console.log("\n✓ Successfully reapplied your local changes.");
           } catch (stashError) {
             // If stash pop fails, try to get the stash reference
             const stashList = await this.sdkGit.stash(["list"]);
@@ -402,7 +402,7 @@ export class StainlessTools {
               // Try to apply the stash without dropping it
               try {
                 await this.sdkGit.stash(["apply", stashRef]);
-                console.log("✓ Successfully reapplied your local changes (with potential conflicts).");
+                console.log("\n✓ Successfully reapplied your local changes (with potential conflicts).");
                 console.log("\n⚠️  There were conflicts while reapplying your changes.");
                 console.log("Your changes are preserved in the stash. To resolve:");
                 console.log("1. Resolve any conflicts in your working directory");
