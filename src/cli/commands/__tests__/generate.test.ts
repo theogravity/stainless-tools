@@ -387,29 +387,6 @@ describe("generate command", () => {
     expect(exitCode).toBe(0);
   });
 
-  it("requires branch to be specified via option, env var, or config", async () => {
-    // Use a config without default branch
-    const configWithoutBranch = {
-      ...defaultMockConfig,
-      defaults: {
-        ...defaultMockConfig.defaults,
-        branch: undefined, // Remove default branch
-      },
-    };
-    vi.mocked(loadConfig).mockResolvedValue(configWithoutBranch);
-
-    const exitCode = await generateAction("test-sdk", {
-      "open-api-file": "./specs/openapi.json",
-      projectName: "test-project",
-    });
-
-    expect(generateAndWatchSDK).not.toHaveBeenCalled();
-    expect(exitCode).toBe(1);
-    expect(mockSpinner.fail).toHaveBeenCalledWith(
-      "Branch name is required. Provide it via --branch option, STAINLESS_SDK_BRANCH environment variable, or in the configuration defaults.",
-    );
-  });
-
   it("uses branch from command line option", async () => {
     const exitCode = await generateAction("test-sdk", {
       branch: "feature/test",
@@ -692,5 +669,32 @@ describe("generate command", () => {
 
     expect(exitCode).toBe(0);
     expect(consoleOutput).toContain("Target directory: /mock/test/dir/fixed/path/sdk");
+  });
+
+  it("generates random cli/ branch when no branch is specified", async () => {
+    // Remove branch from config defaults
+    const configWithoutBranch = {
+      ...defaultMockConfig,
+      defaults: {
+        ...defaultMockConfig.defaults,
+        branch: undefined,
+      },
+    };
+    vi.mocked(loadConfig).mockResolvedValue(configWithoutBranch);
+
+    // Ensure no environment variable is set
+    mockProcess.env = { STAINLESS_API_KEY: "test-api-key" };
+
+    const exitCode = await generateAction("test-sdk", {
+      "open-api-file": "./specs/openapi.json",
+      projectName: "test-project",
+    });
+
+    expect(exitCode).toBe(0);
+    expect(generateAndWatchSDK).toHaveBeenCalledWith(
+      expect.objectContaining({
+        branch: expect.stringMatching(/^cli\/[a-f0-9]{8}$/),
+      }),
+    );
   });
 });
