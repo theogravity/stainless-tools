@@ -2,7 +2,7 @@ import * as path from "node:path";
 import { Command } from "commander";
 import ora from "ora";
 import { StainlessError } from "../../StainlessError.js";
-import { generateAndWatchSDK } from "../../lib.js";
+import { generateAndWatchSDK } from "../../generate-and-watch-sdk";
 import { getTargetDir } from "../../utils.js";
 import type { SdkCommandOptions } from "../types.js";
 import { validateAndProcessOptions } from "../utils.js";

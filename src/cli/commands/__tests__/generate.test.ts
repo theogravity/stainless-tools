@@ -3,12 +3,12 @@ import type * as path from "node:path";
 import mock from "mock-fs";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadConfig } from "../../../config";
-import { generateAndWatchSDK } from "../../../lib";
+import { generateAndWatchSDK } from "../../../generate-and-watch-sdk";
 import { createGenerateCommand, generateAction } from "../generate";
 
 // Mock dependencies
 vi.mock("../../../config");
-vi.mock("../../../lib");
+vi.mock("../../../generate-and-watch-sdk");
 
 // Create a mock process using EventEmitter
 class MockProcess extends EventEmitter {

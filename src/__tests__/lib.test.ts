@@ -1,7 +1,7 @@
 import { watch } from "chokidar";
 import mock from "mock-fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { generateAndWatchSDK } from "../lib";
+import { generateAndWatchSDK } from "../generate-and-watch-sdk";
 
 // Mock chokidar
 vi.mock("chokidar", () => ({

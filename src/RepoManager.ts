@@ -3,6 +3,7 @@ import simpleGit, { type SimpleGit } from "simple-git";
 import * as fs from "node:fs/promises";
 import { StainlessError } from "./StainlessError.js";
 import { getTargetDir } from "./utils.js";
+import { LifecycleManager, type LifecycleConfig } from "./LifecycleManager.js";
 
 interface RepoManagerOptions {
   sdkRepo: string;
@@ -10,20 +11,17 @@ interface RepoManagerOptions {
   targetDir: string;
   sdkName?: string;
   env?: string;
-  lifecycle?: {
-    [key: string]: {
-      postClone?: string;
-      postUpdate?: string;
-    };
-  };
+  lifecycle?: LifecycleConfig;
 }
 
 export class RepoManager {
   private sdkGit: SimpleGit;
   private lastSdkCommitHash: string | null = null;
+  private lifecycleManager: LifecycleManager;
 
   constructor(private options: RepoManagerOptions) {
     this.sdkGit = simpleGit();
+    this.lifecycleManager = new LifecycleManager(options.lifecycle);
   }
 
   /**
@@ -180,29 +178,12 @@ export class RepoManager {
   }
 
   private async executePostCloneCommand(resolvedTargetDir: string): Promise<void> {
-    const postCloneCommand = this.options.lifecycle?.[this.options.sdkName ?? ""]?.postClone;
-    if (this.options.sdkName && postCloneCommand) {
-      try {
-        console.log(`\nExecuting postClone command: ${postCloneCommand}`);
-        const { stdout, stderr } = await execa(postCloneCommand, {
-          shell: true,
-          env: {
-            STAINLESS_TOOLS_SDK_PATH: resolvedTargetDir,
-            STAINLESS_TOOLS_SDK_BRANCH: this.options.branch,
-            STAINLESS_TOOLS_SDK_REPO_NAME: this.options.sdkName,
-          },
-        });
-        if (stdout) console.log(stdout.toString());
-        if (stderr) console.error(stderr.toString());
-        console.log("✓ Successfully executed postClone command");
-      } catch (error) {
-        if (error instanceof Error && "stdout" in error) {
-          const { stdout, stderr } = error as { stdout?: Buffer; stderr?: Buffer };
-          if (stdout) console.log(stdout.toString());
-          if (stderr) console.error(stderr.toString());
-        }
-        throw new StainlessError(`Failed to execute postClone command: ${postCloneCommand}`, error);
-      }
+    if (this.options.sdkName) {
+      await this.lifecycleManager.executePostClone({
+        sdkPath: resolvedTargetDir,
+        branch: this.options.branch,
+        sdkName: this.options.sdkName,
+      });
     }
   }
 
@@ -341,29 +322,12 @@ export class RepoManager {
   }
 
   private async executePostUpdateCommand(): Promise<void> {
-    const postUpdateCommand = this.options.lifecycle?.[this.options.sdkName ?? ""]?.postUpdate;
-    if (this.options.sdkName && postUpdateCommand) {
-      try {
-        console.log(`\nExecuting postUpdate command: ${postUpdateCommand}`);
-        const { stdout, stderr } = await execa(postUpdateCommand, {
-          shell: true,
-          env: {
-            STAINLESS_TOOLS_SDK_PATH: this.getTargetDir(),
-            STAINLESS_TOOLS_SDK_BRANCH: this.options.branch,
-            STAINLESS_TOOLS_SDK_REPO_NAME: this.options.sdkName,
-          },
-        });
-        if (stdout) console.log(stdout.toString());
-        if (stderr) console.error(stderr.toString());
-        console.log("✓ Successfully executed postUpdate command");
-      } catch (error) {
-        if (error instanceof Error && "stdout" in error) {
-          const { stdout, stderr } = error as { stdout?: Buffer; stderr?: Buffer };
-          if (stdout) console.log(stdout.toString());
-          if (stderr) console.error(stderr.toString());
-        }
-        throw new StainlessError(`Failed to execute postUpdate command: ${postUpdateCommand}`, error);
-      }
+    if (this.options.sdkName) {
+      await this.lifecycleManager.executePostUpdate({
+        sdkPath: this.getTargetDir(),
+        branch: this.options.branch,
+        sdkName: this.options.sdkName,
+      });
     }
   }
 
