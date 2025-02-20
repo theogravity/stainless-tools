@@ -1,4 +1,5 @@
 import { StainlessError } from "./StainlessError.js";
+import chalk from "chalk";
 
 /**
  * Interface defining the configuration options for the StainlessApi client
@@ -125,7 +126,7 @@ export class StainlessApi {
         formData.append("guessConfig", "true");
       }
 
-      console.info("\nPublishing specifications to Stainless...");
+      console.info(chalk.blue("\n🚀 Publishing specifications to Stainless..."));
 
       const response = await fetch(`${this.baseUrl}/api/spec`, {
         method: "POST",
@@ -150,7 +151,9 @@ export class StainlessApi {
       }
 
       console.info(
-        "\nSuccessfully published specifications to Stainless. This will not generate a new SDK if there are no actual changes.",
+        chalk.green(
+          "\n✓ Successfully published specifications to Stainless. This will not generate a new SDK if there are no actual changes."
+        ),
       );
     } catch (err: unknown) {
       if (err instanceof StainlessError) {
