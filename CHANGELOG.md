@@ -1,5 +1,11 @@
 # stainless-tools changelog
 
+## 3.5.1
+
+### Patch Changes
+
+- [#39](https://github.com/theogravity/stainless-tools/pull/39) [`852d800`](https://github.com/theogravity/stainless-tools/commit/852d8003a431c03eca0cb12c758ed59cdf510088) Thanks [@theogravity](https://github.com/theogravity)! - Add color support to lifecycle output, add color to certain log entries
+
 ## 3.5.0
 
 ### Minor Changes
