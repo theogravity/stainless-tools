@@ -78,7 +78,7 @@ describe("LifecycleManager", () => {
       expect(execa).toHaveBeenCalledWith("npm install", {
         shell: true,
         env: {
-          "FORCE_COLOR": "true",
+          FORCE_COLOR: "true",
           STAINLESS_TOOLS_SDK_PATH: mockContext.sdkPath,
           STAINLESS_TOOLS_SDK_BRANCH: mockContext.branch,
           STAINLESS_TOOLS_SDK_REPO_NAME: mockContext.sdkName,
@@ -128,7 +128,7 @@ describe("LifecycleManager", () => {
       expect(execa).toHaveBeenCalledWith("npm run build", {
         shell: true,
         env: {
-          "FORCE_COLOR": "true",
+          FORCE_COLOR: "true",
           STAINLESS_TOOLS_SDK_PATH: mockContext.sdkPath,
           STAINLESS_TOOLS_SDK_BRANCH: mockContext.branch,
           STAINLESS_TOOLS_SDK_REPO_NAME: mockContext.sdkName,

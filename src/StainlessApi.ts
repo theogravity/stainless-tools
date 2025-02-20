@@ -1,5 +1,5 @@
-import { StainlessError } from "./StainlessError.js";
 import chalk from "chalk";
+import { StainlessError } from "./StainlessError.js";
 
 /**
  * Interface defining the configuration options for the StainlessApi client
@@ -152,7 +152,7 @@ export class StainlessApi {
 
       console.info(
         chalk.green(
-          "\n✓ Successfully published specifications to Stainless. This will not generate a new SDK if there are no actual changes."
+          "\n✓ Successfully published specifications to Stainless. This will not generate a new SDK if there are no actual changes.",
         ),
       );
     } catch (err: unknown) {

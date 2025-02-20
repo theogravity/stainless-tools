@@ -21,7 +21,10 @@ interface FileWatcherOptions {
 }
 
 export class FileWatcher {
-  private watcher: FSWatcher | null = null;
+  private watcher: FSWatcher | undefined;
+  private publishTimeout: NodeJS.Timeout | undefined;
+  private isPublishing = false;
+  private isWatching = false;
 
   constructor(private options: FileWatcherOptions) {}
 
@@ -31,6 +34,11 @@ export class FileWatcher {
    */
   start(): void {
     if (!this.options.openApiFile && !this.options.stainlessConfigFile) {
+      return;
+    }
+
+    // Prevent multiple start calls
+    if (this.isWatching) {
       return;
     }
 
@@ -45,24 +53,60 @@ export class FileWatcher {
     this.watcher = watch(watchPaths, {
       ignoreInitial: true,
       awaitWriteFinish: {
-        stabilityThreshold: 2000,
+        stabilityThreshold: 5000,
         pollInterval: 100,
       },
     });
 
+    this.isWatching = true;
+
     this.watcher.on("change", async (filePath) => {
       try {
-        this.options.spinner?.stop();
-        console.log(`\nDetected changes in ${filePath}, publishing to Stainless API...`);
+        // Clear any existing timeout
+        if (this.publishTimeout) {
+          clearTimeout(this.publishTimeout);
+          this.publishTimeout = undefined;
+        }
 
-        await this.publishFiles();
+        // If already publishing, don't schedule another publish
+        if (this.isPublishing) {
+          return;
+        }
 
-        console.log(
-          "\n✓ Successfully published changes to Stainless API. Please wait up to a minute for new SDK updates.",
-        );
-        this.options.spinner?.start("Listening for new SDK updates...");
+        this.publishTimeout = setTimeout(async () => {
+          try {
+            if (this.isPublishing) {
+              // Clear the timeout if we're already publishing
+              if (this.publishTimeout) {
+                clearTimeout(this.publishTimeout);
+                this.publishTimeout = undefined;
+              }
+              return;
+            }
+
+            this.isPublishing = true;
+            this.options.spinner?.stop();
+            console.log(`\nDetected changes in ${filePath}, publishing to Stainless API...`);
+
+            try {
+              await this.publishFiles();
+              console.log(
+                "\n✓ Successfully published changes to Stainless API. Please wait up to a minute for new SDK updates.",
+              );
+            } finally {
+              this.isPublishing = false;
+              this.options.spinner?.start("Listening for new SDK updates...");
+            }
+          } catch (error) {
+            console.error("Failed to publish changes:", error);
+            this.isPublishing = false;
+            this.options.spinner?.start("Listening for new SDK updates...");
+          }
+        }, 1000);
       } catch (error) {
-        console.error("Failed to publish changes:", error);
+        console.error("Failed to handle file change:", error);
+        this.isPublishing = false;
+        this.options.spinner?.start("Listening for new SDK updates...");
       }
     });
   }
@@ -71,10 +115,15 @@ export class FileWatcher {
    * Stops watching for file changes.
    */
   stop(): void {
+    if (this.publishTimeout) {
+      clearTimeout(this.publishTimeout);
+      this.publishTimeout = undefined;
+    }
     if (this.watcher) {
       this.watcher.close();
-      this.watcher = null;
+      this.watcher = undefined;
     }
+    this.isWatching = false;
   }
 
   /**
@@ -86,7 +135,6 @@ export class FileWatcher {
         throw new StainlessError("OpenAPI specification file is required");
       }
 
-      // Execute prePublishSpec if available
       if (this.options.lifecycleManager && this.options.sdkName) {
         await this.options.lifecycleManager.executePrePublishSpec({
           sdkPath: process.cwd(),
@@ -120,7 +168,6 @@ export class FileWatcher {
           projectName: this.options.stainlessApiOptions?.projectName,
           guessConfig: this.options.stainlessApiOptions?.guessConfig,
         });
-
         this.options.spinner?.start("Listening for new SDK updates...");
       } catch (error) {
         const files = [
@@ -130,12 +177,10 @@ export class FileWatcher {
           .filter(Boolean)
           .join(" and ");
 
-        // If the error is already a StainlessError, preserve its message and cause
         if (error instanceof StainlessError) {
           throw error;
         }
 
-        // For other errors, wrap them with more context
         throw new StainlessError(`Failed to publish ${files} to Stainless API`, error);
       }
     } catch (error) {
