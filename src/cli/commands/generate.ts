@@ -109,7 +109,7 @@ export async function generateAction(sdkName: string, options: SdkCommandOptions
       },
       env: options.prod ? "prod" : "staging",
       lifecycle: config.lifecycle,
-      projectName
+      projectName,
     });
 
     return 0;

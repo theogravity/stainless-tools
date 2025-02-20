@@ -51,6 +51,7 @@ describe("FileWatcher", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
     mockFsWatcher = {
       on: vi.fn(),
       close: vi.fn(),
@@ -61,6 +62,7 @@ describe("FileWatcher", () => {
 
   afterEach(() => {
     watcher.stop();
+    vi.useRealTimers();
   });
 
   describe("start", () => {
@@ -78,21 +80,60 @@ describe("FileWatcher", () => {
       watcher.start();
       expect(chokidar.watch).toHaveBeenCalledWith(
         [defaultOptions.openApiFile, defaultOptions.stainlessConfigFile],
-        expect.any(Object),
+        expect.objectContaining({
+          ignoreInitial: true,
+          awaitWriteFinish: {
+            stabilityThreshold: 5000,
+            pollInterval: 100,
+          },
+        }),
       );
     });
 
-    it("should handle file changes", async () => {
+    it("should not start watching if already watching", () => {
+      watcher.start();
+      watcher.start();
+      expect(chokidar.watch).toHaveBeenCalledTimes(1);
+    });
+
+    it("should handle file changes with debounce", async () => {
       const mockPublish = vi.spyOn(watcher, "publishFiles").mockResolvedValue();
       watcher.start();
 
       // Get the change callback
       const [[, changeCallback]] = mockFsWatcher.on.mock.calls.filter(([event]) => event === "change");
+
+      // Trigger multiple changes
+      await changeCallback("openapi.yaml");
+      await changeCallback("openapi.yaml");
       await changeCallback("openapi.yaml");
 
-      expect(mockSpinner.stop).toHaveBeenCalled();
-      expect(mockPublish).toHaveBeenCalled();
+      // Fast-forward past debounce time
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(mockSpinner.stop).toHaveBeenCalledTimes(1);
+      expect(mockPublish).toHaveBeenCalledTimes(1);
       expect(mockSpinner.start).toHaveBeenCalledWith("Listening for new SDK updates...");
+    });
+
+    it("should prevent concurrent publishes", async () => {
+      const mockPublish = vi.spyOn(watcher, "publishFiles").mockImplementation(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      });
+      watcher.start();
+
+      // Get the change callback
+      const [[, changeCallback]] = mockFsWatcher.on.mock.calls.filter(([event]) => event === "change");
+
+      // Trigger change and start first publish
+      await changeCallback("openapi.yaml");
+      await vi.advanceTimersByTimeAsync(1000);
+
+      // Trigger another change while first publish is in progress
+      await changeCallback("openapi.yaml");
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(mockPublish).toHaveBeenCalledTimes(1);
     });
 
     it("should handle file change errors", async () => {
@@ -104,22 +145,133 @@ describe("FileWatcher", () => {
       // Get the change callback
       const [[, changeCallback]] = mockFsWatcher.on.mock.calls.filter(([event]) => event === "change");
       await changeCallback("openapi.yaml");
+      await vi.advanceTimersByTimeAsync(1000);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith("Failed to publish changes:", mockError);
+    });
+
+    it("should clear timeout on new changes", async () => {
+      const mockPublish = vi.spyOn(watcher, "publishFiles").mockResolvedValue();
+      watcher.start();
+
+      // Get the change callback
+      const [[, changeCallback]] = mockFsWatcher.on.mock.calls.filter(([event]) => event === "change");
+
+      // Trigger first change
+      await changeCallback("openapi.yaml");
+      await vi.advanceTimersByTimeAsync(500); // Wait half the debounce time
+
+      // Trigger second change
+      await changeCallback("openapi.yaml");
+      await vi.advanceTimersByTimeAsync(500); // Wait another half
+
+      // At this point, the first timeout should have been cleared and not fired
+      expect(mockPublish).not.toHaveBeenCalled();
+
+      // Wait for the full debounce time from the second change
+      await vi.advanceTimersByTimeAsync(500);
+      expect(mockPublish).toHaveBeenCalledTimes(1);
+    });
+
+    it("should not publish in a loop with rapid file changes", async () => {
+      const mockPublish = vi.spyOn(watcher, "publishFiles").mockResolvedValue();
+      watcher.start();
+
+      // Get the change callback
+      const [[, changeCallback]] = mockFsWatcher.on.mock.calls.filter(([event]) => event === "change");
+
+      // Simulate rapid file changes every 100ms for 5 seconds
+      for (let i = 0; i < 50; i++) {
+        await changeCallback("openapi.yaml");
+        await vi.advanceTimersByTimeAsync(100);
+      }
+
+      // Wait for any pending debounce timeouts
+      await vi.advanceTimersByTimeAsync(1000);
+
+      // Should only have published once despite multiple changes
+      expect(mockPublish).toHaveBeenCalledTimes(1);
+
+      // Verify that isPublishing was reset
+      await changeCallback("openapi.yaml");
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(mockPublish).toHaveBeenCalledTimes(2);
+    });
+
+    it("should handle rapid changes during publish", async () => {
+      let publishResolve: () => void;
+      const publishPromise = new Promise<void>((resolve) => {
+        publishResolve = resolve;
+      });
+
+      // Make publishFiles take some time to complete
+      const mockPublish = vi.spyOn(watcher, "publishFiles").mockImplementation(async () => {
+        await publishPromise;
+      });
+
+      watcher.start();
+
+      // Get the change callback
+      const [[, changeCallback]] = mockFsWatcher.on.mock.calls.filter(([event]) => event === "change");
+
+      // Trigger first change
+      await changeCallback("openapi.yaml");
+      await vi.advanceTimersByTimeAsync(1000);
+
+      // Simulate rapid changes while publish is in progress
+      for (let i = 0; i < 10; i++) {
+        await changeCallback("openapi.yaml");
+        await vi.advanceTimersByTimeAsync(100);
+      }
+
+      // Complete the publish
+      publishResolve?.();
+      await vi.advanceTimersByTimeAsync(0);
+
+      // Should only have published once
+      expect(mockPublish).toHaveBeenCalledTimes(1);
+
+      // Verify system is ready for next publish
+      await changeCallback("openapi.yaml");
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(mockPublish).toHaveBeenCalledTimes(2);
     });
   });
 
   describe("stop", () => {
-    it("should stop watching files", () => {
+    it("should stop watching files and clear state", () => {
       watcher.start();
       watcher.stop();
       expect(mockFsWatcher.close).toHaveBeenCalled();
+
+      // Should be able to start watching again after stop
+      watcher.start();
+      expect(chokidar.watch).toHaveBeenCalledTimes(2);
     });
 
     it("should handle multiple stop calls safely", () => {
       watcher.stop();
       watcher.stop();
       expect(mockFsWatcher.close).not.toHaveBeenCalled();
+    });
+
+    it("should clear timeout on stop", async () => {
+      const mockPublish = vi.spyOn(watcher, "publishFiles").mockResolvedValue();
+      watcher.start();
+
+      // Get the change callback
+      const [[, changeCallback]] = mockFsWatcher.on.mock.calls.filter(([event]) => event === "change");
+
+      // Trigger change
+      await changeCallback("openapi.yaml");
+
+      // Stop before timeout fires
+      watcher.stop();
+
+      // Advance past debounce time
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(mockPublish).not.toHaveBeenCalled();
     });
   });
 

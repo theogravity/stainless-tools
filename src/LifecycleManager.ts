@@ -1,5 +1,5 @@
-import { execa } from "execa";
 import chalk from "chalk";
+import { execa } from "execa";
 import { StainlessError } from "./StainlessError.js";
 
 /**

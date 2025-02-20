@@ -1,9 +1,9 @@
 import * as fs from "node:fs/promises";
+import chalk from "chalk";
 import simpleGit, { type SimpleGit } from "simple-git";
 import type { LifecycleManager } from "./LifecycleManager.js";
 import { StainlessError } from "./StainlessError.js";
 import { getTargetDir } from "./utils.js";
-import chalk from "chalk";
 /**
  * Options for configuring a RepoManager instance.
  */
@@ -353,7 +353,9 @@ export class RepoManager {
       try {
         await this.sdkGit.pull("origin", this.options.branch);
         const newHash = await this.getCurrentSdkCommitHash();
-        console.log(chalk.cyan(`\n✏️ Updated SDK repository from ${oldHash.substring(0, 7)} to ${newHash.substring(0, 7)}`));
+        console.log(
+          chalk.cyan(`\n✏️ Updated SDK repository from ${oldHash.substring(0, 7)} to ${newHash.substring(0, 7)}`),
+        );
         this.lastSdkCommitHash = newHash;
 
         if (hasLocalChanges) {
