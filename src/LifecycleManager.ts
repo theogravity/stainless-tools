@@ -1,4 +1,5 @@
 import { execa } from "execa";
+import chalk from "chalk";
 import { StainlessError } from "./StainlessError.js";
 
 /**
@@ -71,10 +72,11 @@ export class LifecycleManager {
     type: "postClone" | "postUpdate" | "prePublishSpec",
   ): Promise<void> {
     try {
-      console.log(`\nExecuting ${type} command: ${command}`);
+      console.log(chalk.magenta(`\n🚀 Executing ${type} command: ${chalk.yellow(command)}`));
       const subprocess = execa(command, {
         shell: true,
         env: {
+          FORCE_COLOR: "true",
           STAINLESS_TOOLS_SDK_PATH: context.sdkPath,
           STAINLESS_TOOLS_SDK_BRANCH: context.branch,
           STAINLESS_TOOLS_SDK_REPO_NAME: context.sdkName,
@@ -96,9 +98,9 @@ export class LifecycleManager {
 
       const { exitCode } = await subprocess;
       if (exitCode === 0) {
-        console.log(`✓ Successfully executed ${type} command`);
+        console.log(chalk.green(`\n✓ Successfully executed ${type} command`));
       } else {
-        throw new Error(`Command exited with code ${exitCode}`);
+        throw new Error(chalk.red(`Command ${type} exited with code ${exitCode}`));
       }
     } catch (error) {
       throw new StainlessError(`Failed to execute ${type} command: ${command}`, error);
