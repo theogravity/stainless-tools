@@ -1,5 +1,11 @@
 # stainless-tools changelog
 
+## 3.5.2
+
+### Patch Changes
+
+- [#41](https://github.com/theogravity/stainless-tools/pull/41) [`2849c5a`](https://github.com/theogravity/stainless-tools/commit/2849c5af728eac2a0c5af6f6e82811a412705f8a) Thanks [@theogravity](https://github.com/theogravity)! - Fix an issue where publish runs in a loop after an initial spec / OAI file change
+
 ## 3.5.1
 
 ### Patch Changes
