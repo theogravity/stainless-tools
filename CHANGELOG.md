@@ -1,5 +1,11 @@
 # stainless-tools changelog
 
+## 3.5.0
+
+### Minor Changes
+
+- [#37](https://github.com/theogravity/stainless-tools/pull/37) [`f6e4fe5`](https://github.com/theogravity/stainless-tools/commit/f6e4fe57747245525ad1d07b3489ee4f8399f6dd) Thanks [@theogravity](https://github.com/theogravity)! - Add prePublishSpec lifecycle hook
+
 ## 3.4.0
 
 ### Minor Changes
