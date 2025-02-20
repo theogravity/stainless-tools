@@ -1,7 +1,8 @@
+import * as fs from "node:fs/promises";
 import { watch } from "chokidar";
 import type { FSWatcher } from "chokidar";
-import * as fs from "node:fs/promises";
 import type { Ora } from "ora";
+import type { LifecycleManager } from "./LifecycleManager.js";
 import type { StainlessApi } from "./StainlessApi.js";
 import { StainlessError } from "./StainlessError.js";
 
@@ -15,6 +16,8 @@ interface FileWatcherOptions {
     projectName?: string;
     guessConfig?: boolean;
   };
+  lifecycleManager?: LifecycleManager;
+  sdkName?: string;
 }
 
 export class FileWatcher {
@@ -83,6 +86,15 @@ export class FileWatcher {
         throw new StainlessError("OpenAPI specification file is required");
       }
 
+      // Execute prePublishSpec if available
+      if (this.options.lifecycleManager && this.options.sdkName) {
+        await this.options.lifecycleManager.executePrePublishSpec({
+          sdkPath: process.cwd(),
+          branch: this.options.branch,
+          sdkName: this.options.sdkName,
+        });
+      }
+
       let spec: Buffer;
       let config: Buffer | undefined;
 
@@ -133,4 +145,4 @@ export class FileWatcher {
       throw new StainlessError("Failed to publish files to Stainless API", error);
     }
   }
-} 
+}

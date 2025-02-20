@@ -26,6 +26,9 @@ module.exports = {
   // These commands are executed at specific points in the SDK lifecycle
   lifecycle: {
     typescript: {
+      // Command to run before publishing specs
+      // Useful for validation, linting, and transformations
+      prePublishSpec: 'npm run validate-spec',
       // Command to run after cloning/updating the repository
       // Useful for installing dependencies, building, etc.
       postClone: 'npm install && npm run build',
@@ -34,6 +37,7 @@ module.exports = {
       postUpdate: 'npm run build',
     },
     python: {
+      prePublishSpec: 'python scripts/validate_spec.py',
       postClone: 'pip install -e .',
       postUpdate: 'pip install -e .',
     },

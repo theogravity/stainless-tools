@@ -1,4 +1,5 @@
 import type { Ora } from "ora";
+import { LifecycleManager } from "./LifecycleManager.js";
 import { StainlessError } from "./StainlessError.js";
 import { StainlessTools } from "./StainlessTools.js";
 
@@ -14,8 +15,8 @@ interface GenerateAndWatchSDKOptions {
   branch: string;
   /** Local directory where the SDK will be generated */
   targetDir: string;
-  /** Path to OpenAPI specification file (optional) */
-  openApiFile?: string;
+  /** Path to OpenAPI specification file (required) */
+  openApiFile: string;
   /** Path to Stainless configuration file (optional) */
   stainlessConfigFile?: string;
   /** Interval in milliseconds between checking for updates (default: 5000) */
@@ -40,8 +41,11 @@ interface GenerateAndWatchSDKOptions {
     [key: string]: {
       postClone?: string;
       postUpdate?: string;
+      prePublishSpec?: string;
     };
   };
+  /** Name of the project in Stainless (required) */
+  projectName: string;
 }
 
 /**
@@ -54,8 +58,14 @@ interface GenerateAndWatchSDKOptions {
  * @throws {StainlessError} If there are issues with cloning or updating the SDK
  */
 export async function generateAndWatchSDK(options: GenerateAndWatchSDKOptions): Promise<() => Promise<void>> {
+  // Create a lifecycle manager instance
+  const lifecycleManager = new LifecycleManager(options.lifecycle);
+
   // Initialize the SDK tools with provided options
-  const sdk = new StainlessTools(options);
+  const sdk = new StainlessTools({
+    ...options,
+    lifecycleManager,
+  });
 
   try {
     // Attempt to clone the SDK repository

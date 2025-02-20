@@ -1,27 +1,39 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { StainlessTools } from "../StainlessTools";
-import { StainlessApi } from "../StainlessApi";
-import { FileWatcher } from "../FileWatcher";
-import { RepoManager } from "../RepoManager";
-import { StainlessError } from "../StainlessError";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { FileWatcher } from "../FileWatcher.js";
+import { LifecycleManager } from "../LifecycleManager.js";
+import { RepoManager } from "../RepoManager.js";
+import { StainlessApi } from "../StainlessApi.js";
+import { StainlessError } from "../StainlessError.js";
+import { StainlessTools } from "../StainlessTools.js";
 
 // Mock dependencies
-vi.mock("../StainlessApi");
-vi.mock("../FileWatcher");
-vi.mock("../RepoManager");
+vi.mock("../StainlessApi.js");
+vi.mock("../FileWatcher.js");
+vi.mock("../RepoManager.js");
+vi.mock("../LifecycleManager.js");
 
 describe("StainlessTools", () => {
   const defaultOptions = {
-    sdkRepo: "git@github.com:example/sdk.git",
+    sdkRepo: "git@github.com:org/repo.git",
     branch: "main",
-    targetDir: "/tmp/sdk",
+    targetDir: "./sdks/test",
     openApiFile: "openapi.yaml",
     stainlessConfigFile: "stainless.json",
+    projectName: "test-project",
     stainlessApiOptions: {
       apiKey: "test-api-key",
       baseUrl: "https://api.test.com",
       projectName: "test-project",
     },
+    sdkName: "test-sdk",
+    env: "staging",
+    lifecycle: {
+      "test-sdk": {
+        postClone: "npm install",
+        postUpdate: "npm run build",
+      },
+    },
+    lifecycleManager: new LifecycleManager(),
   };
 
   beforeEach(() => {
@@ -37,21 +49,32 @@ describe("StainlessTools", () => {
         sdkRepo: defaultOptions.sdkRepo,
         branch: defaultOptions.branch,
         targetDir: defaultOptions.targetDir,
-        sdkName: undefined,
-        env: undefined,
-        lifecycle: undefined,
+        sdkName: defaultOptions.sdkName,
+        env: defaultOptions.env,
+        lifecycleManager: expect.any(LifecycleManager),
       });
-      expect(FileWatcher).toHaveBeenCalledWith({
-        openApiFile: defaultOptions.openApiFile,
-        stainlessConfigFile: defaultOptions.stainlessConfigFile,
-        spinner: undefined,
-        branch: defaultOptions.branch,
-        stainlessApi: expect.any(StainlessApi),
-        stainlessApiOptions: {
-          projectName: defaultOptions.stainlessApiOptions.projectName,
-          guessConfig: undefined,
-        },
-      });
+      expect(FileWatcher).toHaveBeenCalledWith(
+        expect.objectContaining({
+          openApiFile: defaultOptions.openApiFile,
+          stainlessConfigFile: defaultOptions.stainlessConfigFile,
+          spinner: undefined,
+          branch: defaultOptions.branch,
+          stainlessApi: expect.any(StainlessApi),
+          stainlessApiOptions: {
+            projectName: defaultOptions.stainlessApiOptions.projectName,
+            guessConfig: undefined,
+          },
+          lifecycleManager: expect.any(LifecycleManager),
+          sdkName: defaultOptions.sdkName,
+        }),
+      );
+    });
+
+    it("should create LifecycleManager with empty config when no lifecycle provided", () => {
+      const { lifecycle, ...optionsWithoutLifecycle } = defaultOptions;
+
+      const tools = new StainlessTools(optionsWithoutLifecycle);
+      expect(LifecycleManager).toHaveBeenCalledWith(undefined);
     });
 
     it("should throw error if sdkRepo is missing", () => {
@@ -89,10 +112,10 @@ describe("StainlessTools", () => {
 
       // Setup mocks with proper typing
       mockFileWatcher.publishFiles = vi.fn().mockImplementation(async () => {
-        callOrder.push('publish');
+        callOrder.push("publish");
       });
       mockRepoManager.initializeRepo = vi.fn().mockImplementation(async () => {
-        callOrder.push('initRepo');
+        callOrder.push("initRepo");
       });
       mockFileWatcher.start = vi.fn();
     });
@@ -101,7 +124,7 @@ describe("StainlessTools", () => {
       await tools.clone();
 
       // Verify publish is called before repo initialization
-      expect(callOrder).toEqual(['publish', 'initRepo']);
+      expect(callOrder).toEqual(["publish", "initRepo"]);
       expect(mockFileWatcher.publishFiles).toHaveBeenCalled();
       expect(mockRepoManager.initializeRepo).toHaveBeenCalled();
       expect(mockFileWatcher.start).toHaveBeenCalled();
@@ -112,65 +135,33 @@ describe("StainlessTools", () => {
         ...defaultOptions,
         branch: "cli/feature",
       });
-      
+
       // Get the mock instances for the new StainlessTools instance
       const mockRepoManager = vi.mocked(RepoManager).mock.instances[1];
       const mockFileWatcher = vi.mocked(FileWatcher).mock.instances[1];
 
       // Setup mocks with proper typing
       mockFileWatcher.publishFiles = vi.fn().mockImplementation(async () => {
-        callOrder.push('publish');
+        callOrder.push("publish");
       });
       mockRepoManager.initializeRepo = vi.fn().mockImplementation(async () => {
-        callOrder.push('initRepo');
+        callOrder.push("initRepo");
       });
       mockFileWatcher.start = vi.fn();
 
       await cliTools.clone();
 
       // Verify publish is called before repo initialization
-      expect(callOrder).toEqual(['publish', 'initRepo']);
+      expect(callOrder).toEqual(["publish", "initRepo"]);
       expect(mockFileWatcher.publishFiles).toHaveBeenCalled();
       expect(mockRepoManager.initializeRepo).toHaveBeenCalled();
       expect(mockFileWatcher.start).toHaveBeenCalled();
     });
 
-    it("should not publish files if no files are provided", async () => {
-      const noFilesTools = new StainlessTools({
-        ...defaultOptions,
-        openApiFile: undefined,
-        stainlessConfigFile: undefined,
-      });
-      
-      const mockFileWatcher = vi.mocked(FileWatcher).mock.instances[1];
-      const mockRepoManager = vi.mocked(RepoManager).mock.instances[1];
+    it("should throw error if openApiFile is missing", async () => {
+      const { openApiFile, ...optionsWithoutOpenApi } = defaultOptions;
 
-      // Setup mocks with proper typing
-      mockFileWatcher.publishFiles = vi.fn().mockImplementation(async () => {
-        callOrder.push('publish');
-      });
-      mockRepoManager.initializeRepo = vi.fn().mockImplementation(async () => {
-        callOrder.push('initRepo');
-      });
-      mockFileWatcher.start = vi.fn();
-
-      await noFilesTools.clone();
-
-      // Verify only initRepo is called
-      expect(callOrder).toEqual(['initRepo']);
-      expect(mockFileWatcher.publishFiles).not.toHaveBeenCalled();
-      expect(mockRepoManager.initializeRepo).toHaveBeenCalled();
-      expect(mockFileWatcher.start).toHaveBeenCalled();
-    });
-
-    it("should throw error if stainlessConfigFile provided without openApiFile", async () => {
-      const invalidTools = new StainlessTools({
-        ...defaultOptions,
-        openApiFile: undefined,
-        stainlessConfigFile: "stainless.json",
-      });
-
-      await expect(invalidTools.clone()).rejects.toThrow(StainlessError);
+      expect(() => new StainlessTools(optionsWithoutOpenApi as any)).toThrow(StainlessError);
     });
 
     it("should handle repository initialization errors", async () => {
@@ -242,4 +233,4 @@ describe("StainlessTools", () => {
       expect(mockFileWatcher.stop).toHaveBeenCalled();
     });
   });
-}); 
+});

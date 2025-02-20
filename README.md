@@ -100,9 +100,9 @@ interface StainlessConfig {
   // These commands are executed at specific points in the SDK lifecycle
   lifecycle?: {
     [key: string]: {
-      // Command to run after cloning/updating the repository
-      // Useful for installing dependencies, building, etc.
       postClone: string;
+      postUpdate: string;
+      prePublishSpec: string;
     };
   };
 
@@ -188,6 +188,17 @@ module.exports = {
 
 The tool supports lifecycle hooks that allow you to automate tasks after certain operations. Currently supported hooks:
 
+#### prePublishSpec
+
+The `prePublishSpec` hook runs before:
+- Publishing OpenAPI and Stainless configuration files to Stainless
+
+This hook is useful for:
+- Validating OpenAPI specifications
+- Running linters
+- Transforming specifications
+- Running pre-publish checks
+
 #### postClone
 
 The `postClone` hook runs after:
@@ -215,26 +226,61 @@ This hook is useful for:
 Hooks are configured in the `lifecycle` section of your configuration file:
 
 ```javascript
-// stainless-tools.config.js
 module.exports = {
   stainlessSdkRepos: {
     typescript: {
-      staging: 'git@github.com:stainless-sdks/yourproject-typescript-staging.git',
-      prod: 'git@github.com:stainless-sdks/yourproject-typescript.git',
+      staging: 'git@github.com:stainless-sdks/test-typescript.git',
+      prod: 'git@github.com:test-org/test-typescript.git',
     },
   },
+
+  // Lifecycle hooks allow you to automate tasks at specific points in the SDK lifecycle
+  // Each SDK can have its own set of hooks with different commands
+  // All hooks have access to these environment variables:
+  // - STAINLESS_TOOLS_SDK_PATH: Full path to the SDK repository
+  // - STAINLESS_TOOLS_SDK_BRANCH: Current branch name
+  // - STAINLESS_TOOLS_SDK_REPO_NAME: Name of the SDK (e.g., 'typescript')
   lifecycle: {
     typescript: {
-      // Run after initial clone
-      postClone: 'npm install && npm run build',
-      // Run after pulling new changes
+      // Runs before publishing specs to Stainless
+      // Use this to validate or transform your OpenAPI spec
+      // Example: Run OpenAPI linter, validate against schema, etc.
+      prePublishSpec: 'npm run validate-spec',
+
+      // Runs after initial clone of the SDK repository
+      // Use this to set up the development environment
+      // Example: Install dependencies, configure git hooks, etc.
+      postClone: 'cd $STAINLESS_TOOLS_SDK_PATH && npm install && npm run build',
+
+      // Runs after pulling new changes from remote
+      // Use this to ensure the SDK is ready after updates
+      // Example: Rebuild, update dependencies, run migrations, etc.
       postUpdate: 'npm run build',
     },
     python: {
+      // Run Python-specific validation before publishing
+      // Example: Validate against custom rules, check formatting, etc.
+      prePublishSpec: 'python scripts/validate_spec.py',
+
+      // Set up Python virtual environment and install package
+      // Example: Create venv, install dependencies, etc.
       postClone: 'python -m venv venv && source venv/bin/activate && pip install -e .',
+
+      // Update dependencies and reinstall package after changes
+      // Example: Update pip packages, rebuild extensions, etc.
       postUpdate: 'source venv/bin/activate && pip install -e .',
     },
   },
+
+  // Optional default configurations
+  defaults: {
+    branch: 'main',
+    targetDir: './sdks/{env}/{sdk}/{branch}',
+    openApiFile: './specs/openapi.yml',
+    stainlessConfigFile: './stainless-tools.config.yml',
+    guessConfig: false,
+    projectName: 'my-project'
+  }
 };
 ```
 
@@ -305,9 +351,9 @@ Arguments:
 Options:
   -b, --branch <name>                Branch name to use (optional)
   -t, --target-dir <dir>             Target directory for the SDK (required if not in config)
-  -o, --open-api-file <file>         OpenAPI specification file
+  -o, --open-api-file <file>         OpenAPI specification file (required if not in config)
   -c, --config <file>                Configuration file path
-  -s, --stainless-config-file <file> Stainless configuration file
+  -s, --stainless-config-file <file> Stainless configuration file (required if not in config)
   -p, --project-name <name>          Project name for Stainless API (required if not in config)
   -g, --guess-config                 Uses the "Guess with AI" command from the Stainless Studio for the Stainless Config if enabled
   --prod                             Use production URLs instead of staging URLs

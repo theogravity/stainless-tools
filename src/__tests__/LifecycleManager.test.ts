@@ -1,23 +1,24 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { execa } from 'execa';
-import { LifecycleManager } from '../LifecycleManager.js';
-import { StainlessError } from '../StainlessError.js';
-import { Readable } from 'stream';
+import { Readable } from "node:stream";
+import { execa } from "execa";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { LifecycleManager } from "../LifecycleManager.js";
+import { StainlessError } from "../StainlessError.js";
 
-vi.mock('execa');
+vi.mock("execa");
 
-describe('LifecycleManager', () => {
+describe("LifecycleManager", () => {
   const mockContext = {
-    sdkPath: '/path/to/sdk',
-    branch: 'main',
-    sdkName: 'test-sdk'
+    sdkPath: "/path/to/sdk",
+    branch: "main",
+    sdkName: "test-sdk",
   };
 
   const mockConfig = {
-    'test-sdk': {
-      postClone: 'npm install',
-      postUpdate: 'npm run build'
-    }
+    "test-sdk": {
+      postClone: "npm install",
+      postUpdate: "npm run build",
+      prePublishSpec: "npm run validate",
+    },
   };
 
   let lifecycleManager: LifecycleManager;
@@ -45,19 +46,19 @@ describe('LifecycleManager', () => {
     // Mock process.stdout.write and process.stderr.write
     mockProcess = {
       stdout: { write: vi.fn() },
-      stderr: { write: vi.fn() }
+      stderr: { write: vi.fn() },
     };
-    vi.stubGlobal('process', mockProcess);
+    vi.stubGlobal("process", mockProcess);
 
     // Setup default execa mock with proper subprocess structure
     const mockSubprocess = {
       stdout: mockStdout,
       stderr: mockStderr,
       exitCode: 0,
-      // Add a promise-like structure that execa returns
+      // biome-ignore lint/suspicious/noThenProperty: Add a promise-like structure that execa returns
       then: (fn: any) => Promise.resolve(fn({ exitCode: 0 })),
       catch: () => Promise.resolve(),
-      finally: () => Promise.resolve()
+      finally: () => Promise.resolve(),
     };
 
     (execa as unknown as any).mockReturnValue(mockSubprocess);
@@ -70,50 +71,48 @@ describe('LifecycleManager', () => {
     vi.unstubAllGlobals();
   });
 
-  describe('executePostClone', () => {
-    it('executes postClone command with correct environment variables', async () => {
+  describe("executePostClone", () => {
+    it("executes postClone command with correct environment variables", async () => {
       await lifecycleManager.executePostClone(mockContext);
 
-      expect(execa).toHaveBeenCalledWith('npm install', {
+      expect(execa).toHaveBeenCalledWith("npm install", {
         shell: true,
         env: {
           STAINLESS_TOOLS_SDK_PATH: mockContext.sdkPath,
           STAINLESS_TOOLS_SDK_BRANCH: mockContext.branch,
           STAINLESS_TOOLS_SDK_REPO_NAME: mockContext.sdkName,
         },
-        stdio: ['inherit', 'pipe', 'pipe']
+        stdio: ["inherit", "pipe", "pipe"],
       });
     });
 
-    it('streams stdout in real-time', async () => {
+    it("streams stdout in real-time", async () => {
       const promise = lifecycleManager.executePostClone(mockContext);
-      mockStdout.emit('data', 'Installing dependencies...\n');
+      mockStdout.emit("data", "Installing dependencies...\n");
       await promise;
 
-      expect(mockProcess.stdout.write).toHaveBeenCalledWith('Installing dependencies...\n');
+      expect(mockProcess.stdout.write).toHaveBeenCalledWith("Installing dependencies...\n");
     });
 
-    it('streams stderr in real-time', async () => {
+    it("streams stderr in real-time", async () => {
       const promise = lifecycleManager.executePostClone(mockContext);
-      mockStderr.emit('data', 'Warning: deprecated package\n');
+      mockStderr.emit("data", "Warning: deprecated package\n");
       await promise;
 
-      expect(mockProcess.stderr.write).toHaveBeenCalledWith('Warning: deprecated package\n');
+      expect(mockProcess.stderr.write).toHaveBeenCalledWith("Warning: deprecated package\n");
     });
 
-    it('handles command failure', async () => {
+    it("handles command failure", async () => {
       (execa as unknown as any).mockReturnValue({
         stdout: mockStdout,
         stderr: mockStderr,
-        exitCode: 1
+        exitCode: 1,
       });
 
-      await expect(lifecycleManager.executePostClone(mockContext))
-        .rejects
-        .toThrow(StainlessError);
+      await expect(lifecycleManager.executePostClone(mockContext)).rejects.toThrow(StainlessError);
     });
 
-    it('does nothing if no postClone command is configured', async () => {
+    it("does nothing if no postClone command is configured", async () => {
       const emptyManager = new LifecycleManager({});
       await emptyManager.executePostClone(mockContext);
 
@@ -121,50 +120,48 @@ describe('LifecycleManager', () => {
     });
   });
 
-  describe('executePostUpdate', () => {
-    it('executes postUpdate command with correct environment variables', async () => {
+  describe("executePostUpdate", () => {
+    it("executes postUpdate command with correct environment variables", async () => {
       await lifecycleManager.executePostUpdate(mockContext);
 
-      expect(execa).toHaveBeenCalledWith('npm run build', {
+      expect(execa).toHaveBeenCalledWith("npm run build", {
         shell: true,
         env: {
           STAINLESS_TOOLS_SDK_PATH: mockContext.sdkPath,
           STAINLESS_TOOLS_SDK_BRANCH: mockContext.branch,
           STAINLESS_TOOLS_SDK_REPO_NAME: mockContext.sdkName,
         },
-        stdio: ['inherit', 'pipe', 'pipe']
+        stdio: ["inherit", "pipe", "pipe"],
       });
     });
 
-    it('streams stdout in real-time', async () => {
+    it("streams stdout in real-time", async () => {
       const promise = lifecycleManager.executePostUpdate(mockContext);
-      mockStdout.emit('data', 'Building project...\n');
+      mockStdout.emit("data", "Building project...\n");
       await promise;
 
-      expect(mockProcess.stdout.write).toHaveBeenCalledWith('Building project...\n');
+      expect(mockProcess.stdout.write).toHaveBeenCalledWith("Building project...\n");
     });
 
-    it('streams stderr in real-time', async () => {
+    it("streams stderr in real-time", async () => {
       const promise = lifecycleManager.executePostUpdate(mockContext);
-      mockStderr.emit('data', 'Warning: build optimization failed\n');
+      mockStderr.emit("data", "Warning: build optimization failed\n");
       await promise;
 
-      expect(mockProcess.stderr.write).toHaveBeenCalledWith('Warning: build optimization failed\n');
+      expect(mockProcess.stderr.write).toHaveBeenCalledWith("Warning: build optimization failed\n");
     });
 
-    it('handles command failure', async () => {
+    it("handles command failure", async () => {
       (execa as unknown as any).mockReturnValue({
         stdout: mockStdout,
         stderr: mockStderr,
-        exitCode: 1
+        exitCode: 1,
       });
 
-      await expect(lifecycleManager.executePostUpdate(mockContext))
-        .rejects
-        .toThrow(StainlessError);
+      await expect(lifecycleManager.executePostUpdate(mockContext)).rejects.toThrow(StainlessError);
     });
 
-    it('does nothing if no postUpdate command is configured', async () => {
+    it("does nothing if no postUpdate command is configured", async () => {
       const emptyManager = new LifecycleManager({});
       await emptyManager.executePostUpdate(mockContext);
 
@@ -172,23 +169,70 @@ describe('LifecycleManager', () => {
     });
   });
 
-  describe('error handling', () => {
-    it('wraps execa errors in StainlessError', async () => {
-      const execaError = new Error('Command failed');
-      (execa as unknown as any).mockRejectedValue(execaError);
+  describe("executePrePublishSpec", () => {
+    it("executes prePublishSpec command with correct environment variables", async () => {
+      await lifecycleManager.executePrePublishSpec(mockContext);
 
-      await expect(lifecycleManager.executePostClone(mockContext))
-        .rejects
-        .toThrow(StainlessError);
+      expect(execa).toHaveBeenCalledWith("npm run validate", {
+        shell: true,
+        env: {
+          STAINLESS_TOOLS_SDK_PATH: mockContext.sdkPath,
+          STAINLESS_TOOLS_SDK_BRANCH: mockContext.branch,
+          STAINLESS_TOOLS_SDK_REPO_NAME: mockContext.sdkName,
+        },
+        stdio: ["inherit", "pipe", "pipe"],
+      });
     });
 
-    it('includes the command in error message', async () => {
-      const execaError = new Error('Command failed');
-      (execa as unknown as any).mockRejectedValue(execaError);
+    it("streams stdout in real-time", async () => {
+      const promise = lifecycleManager.executePrePublishSpec(mockContext);
+      mockStdout.emit("data", "Validating specification...\n");
+      await promise;
 
-      await expect(lifecycleManager.executePostClone(mockContext))
-        .rejects
-        .toThrow('Failed to execute postClone command: npm install');
+      expect(mockProcess.stdout.write).toHaveBeenCalledWith("Validating specification...\n");
+    });
+
+    it("streams stderr in real-time", async () => {
+      const promise = lifecycleManager.executePrePublishSpec(mockContext);
+      mockStderr.emit("data", "Warning: validation warning\n");
+      await promise;
+
+      expect(mockProcess.stderr.write).toHaveBeenCalledWith("Warning: validation warning\n");
+    });
+
+    it("handles command failure", async () => {
+      (execa as unknown as any).mockReturnValue({
+        stdout: mockStdout,
+        stderr: mockStderr,
+        exitCode: 1,
+      });
+
+      await expect(lifecycleManager.executePrePublishSpec(mockContext)).rejects.toThrow(StainlessError);
+    });
+
+    it("does nothing if no prePublishSpec command is configured", async () => {
+      const emptyManager = new LifecycleManager({});
+      await emptyManager.executePrePublishSpec(mockContext);
+
+      expect(execa).not.toHaveBeenCalled();
     });
   });
-}); 
+
+  describe("error handling", () => {
+    it("wraps execa errors in StainlessError", async () => {
+      const execaError = new Error("Command failed");
+      (execa as unknown as any).mockRejectedValue(execaError);
+
+      await expect(lifecycleManager.executePostClone(mockContext)).rejects.toThrow(StainlessError);
+    });
+
+    it("includes the command in error message", async () => {
+      const execaError = new Error("Command failed");
+      (execa as unknown as any).mockRejectedValue(execaError);
+
+      await expect(lifecycleManager.executePostClone(mockContext)).rejects.toThrow(
+        "Failed to execute postClone command: npm install",
+      );
+    });
+  });
+});

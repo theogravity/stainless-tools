@@ -1,27 +1,82 @@
-import { execa } from "execa";
-import simpleGit, { type SimpleGit } from "simple-git";
 import * as fs from "node:fs/promises";
+import simpleGit, { type SimpleGit } from "simple-git";
+import type { LifecycleManager } from "./LifecycleManager.js";
 import { StainlessError } from "./StainlessError.js";
 import { getTargetDir } from "./utils.js";
-import { LifecycleManager, type LifecycleConfig } from "./LifecycleManager.js";
 
-interface RepoManagerOptions {
+/**
+ * Options for configuring a RepoManager instance.
+ */
+export interface RepoManagerOptions {
+  /**
+   * Git repository URL for the SDK.
+   */
   sdkRepo: string;
+  /**
+   * Git branch to use for the SDK.
+   */
   branch: string;
+  /**
+   * Local directory where the SDK repository will be cloned/managed.
+   */
   targetDir: string;
+  /**
+   * Name of the SDK (e.g., 'typescript', 'python').
+   * Optional - only required for lifecycle hooks.
+   */
   sdkName?: string;
+  /**
+   * Current environment (staging/prod).
+   * Optional - used for target directory templating.
+   */
   env?: string;
-  lifecycle?: LifecycleConfig;
+  /**
+   * Lifecycle manager for executing hooks at various stages.
+   */
+  lifecycleManager: LifecycleManager;
 }
 
+/**
+ * Manages SDK repository operations and lifecycle events.
+ *
+ * The RepoManager is responsible for:
+ * - Cloning and initializing SDK repositories
+ * - Managing git branches and local changes
+ * - Pulling updates from remote repositories
+ * - Handling stashed changes during updates
+ * - Executing lifecycle hooks at appropriate times
+ * - Providing status updates and error handling
+ *
+ * It ensures that local SDK repositories are properly maintained and
+ * synchronized with their remote counterparts while preserving any
+ * local changes made by the user.
+ *
+ * Example usage:
+ * ```typescript
+ * const manager = new RepoManager({
+ *   sdkRepo: 'git@github.com:org/sdk.git',
+ *   branch: 'main',
+ *   targetDir: './sdks/typescript',
+ *   sdkName: 'typescript',
+ *   env: 'staging',
+ *   lifecycleManager: new LifecycleManager()
+ * });
+ *
+ * await manager.init(); // Clone/setup repository
+ * await manager.pull(); // Pull latest changes
+ * ```
+ */
 export class RepoManager {
   private sdkGit: SimpleGit;
   private lastSdkCommitHash: string | null = null;
-  private lifecycleManager: LifecycleManager;
+  private options: RepoManagerOptions;
+  private git: SimpleGit;
+  private isInitialized = false;
 
-  constructor(private options: RepoManagerOptions) {
+  constructor(options: RepoManagerOptions) {
+    this.options = options;
     this.sdkGit = simpleGit();
-    this.lifecycleManager = new LifecycleManager(options.lifecycle);
+    this.git = simpleGit();
   }
 
   /**
@@ -70,15 +125,15 @@ export class RepoManager {
     while (true) {
       try {
         await this.sdkGit.fetch();
-        const branches = await this.sdkGit.branch(['-r']);
+        const branches = await this.sdkGit.branch(["-r"]);
         if (branches.all.includes(`origin/${branch}`)) {
           return;
         }
       } catch {
         // Ignore errors and continue trying
       }
-      
-      await new Promise(resolve => setTimeout(resolve, delayMs));
+
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }
 
@@ -153,11 +208,11 @@ export class RepoManager {
       await fs.mkdir(resolvedTargetDir, { recursive: true });
       await this.sdkGit.cwd(resolvedTargetDir);
       await this.sdkGit.init();
-      await this.sdkGit.addRemote('origin', this.options.sdkRepo);
+      await this.sdkGit.addRemote("origin", this.options.sdkRepo);
 
       // Check if the branch exists remotely and wait for it if needed
       await this.sdkGit.fetch();
-      const branches = await this.sdkGit.branch(['-r']);
+      const branches = await this.sdkGit.branch(["-r"]);
 
       const branchExists = branches.all.includes(`origin/${this.options.branch}`);
 
@@ -167,8 +222,8 @@ export class RepoManager {
       }
 
       // Now that we know the branch exists, clone it
-      await this.sdkGit.fetch('origin', this.options.branch);
-      await this.sdkGit.checkout(['-b', this.options.branch, `origin/${this.options.branch}`]);
+      await this.sdkGit.fetch("origin", this.options.branch);
+      await this.sdkGit.checkout(["-b", this.options.branch, `origin/${this.options.branch}`]);
       this.lastSdkCommitHash = await this.getCurrentSdkCommitHash();
 
       await this.executePostCloneCommand(resolvedTargetDir);
@@ -179,7 +234,7 @@ export class RepoManager {
 
   private async executePostCloneCommand(resolvedTargetDir: string): Promise<void> {
     if (this.options.sdkName) {
-      await this.lifecycleManager.executePostClone({
+      await this.options.lifecycleManager.executePostClone({
         sdkPath: resolvedTargetDir,
         branch: this.options.branch,
         sdkName: this.options.sdkName,
@@ -188,8 +243,8 @@ export class RepoManager {
   }
 
   private async handleBranchSwitch(): Promise<void> {
-    const currentBranch = await this.sdkGit.revparse(['--abbrev-ref', 'HEAD']);
-    
+    const currentBranch = await this.sdkGit.revparse(["--abbrev-ref", "HEAD"]);
+
     // If we're already on the right branch, nothing to do
     if (currentBranch === this.options.branch) {
       return;
@@ -207,7 +262,7 @@ export class RepoManager {
     try {
       // Check if the target branch exists remotely
       await this.sdkGit.fetch();
-      const branches = await this.sdkGit.branch(['-r']);
+      const branches = await this.sdkGit.branch(["-r"]);
       const branchExists = branches.all.includes(`origin/${this.options.branch}`);
 
       if (!branchExists) {
@@ -258,10 +313,7 @@ export class RepoManager {
           process.exit(1);
         }
       } else {
-        throw new StainlessError(
-          "Failed to reapply local changes and could not find stash reference",
-          stashError,
-        );
+        throw new StainlessError("Failed to reapply local changes and could not find stash reference", stashError);
       }
     }
   }
@@ -323,7 +375,7 @@ export class RepoManager {
 
   private async executePostUpdateCommand(): Promise<void> {
     if (this.options.sdkName) {
-      await this.lifecycleManager.executePostUpdate({
+      await this.options.lifecycleManager.executePostUpdate({
         sdkPath: this.getTargetDir(),
         branch: this.options.branch,
         sdkName: this.options.sdkName,
@@ -347,4 +399,4 @@ export class RepoManager {
       throw new StainlessError("Failed to restore local changes after pull failed", stashError);
     }
   }
-} 
+}

@@ -1,10 +1,10 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { FileWatcher } from "../FileWatcher";
-import { StainlessApi } from "../StainlessApi";
-import { StainlessError } from "../StainlessError";
 import * as fs from "node:fs/promises";
 import * as chokidar from "chokidar";
 import type { Ora } from "ora";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { FileWatcher } from "../FileWatcher";
+import type { StainlessApi } from "../StainlessApi";
+import { StainlessError } from "../StainlessError";
 
 vi.mock("node:fs/promises");
 vi.mock("chokidar");
@@ -130,9 +130,7 @@ describe("FileWatcher", () => {
         openApiFile: undefined,
       });
 
-      await expect(noOpenApiWatcher.publishFiles()).rejects.toThrow(
-        "OpenAPI specification file is required",
-      );
+      await expect(noOpenApiWatcher.publishFiles()).rejects.toThrow("OpenAPI specification file is required");
     });
 
     it("should publish OpenAPI spec without config", async () => {
@@ -156,9 +154,7 @@ describe("FileWatcher", () => {
     it("should publish both OpenAPI spec and config", async () => {
       const specContent = Buffer.from("spec content");
       const configContent = Buffer.from("config content");
-      vi.mocked(fs.readFile)
-        .mockResolvedValueOnce(specContent)
-        .mockResolvedValueOnce(configContent);
+      vi.mocked(fs.readFile).mockResolvedValueOnce(specContent).mockResolvedValueOnce(configContent);
 
       await watcher.publishFiles();
 
@@ -192,9 +188,7 @@ describe("FileWatcher", () => {
     it("should handle publish API error", async () => {
       const specContent = Buffer.from("spec content");
       const configContent = Buffer.from("config content");
-      vi.mocked(fs.readFile)
-        .mockResolvedValueOnce(specContent)
-        .mockResolvedValueOnce(configContent);
+      vi.mocked(fs.readFile).mockResolvedValueOnce(specContent).mockResolvedValueOnce(configContent);
 
       const apiError = new StainlessError("API Error");
       mockPublish.mockRejectedValueOnce(apiError);
@@ -202,4 +196,4 @@ describe("FileWatcher", () => {
       await expect(watcher.publishFiles()).rejects.toThrow(apiError);
     });
   });
-}); 
+});

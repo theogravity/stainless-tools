@@ -17,6 +17,7 @@ const repoConfigSchema = z
 const lifecycleConfigSchema = z.object({
   postClone: z.string().optional(),
   postUpdate: z.string().optional(),
+  prePublishSpec: z.string().optional(),
 });
 
 export const configSchema = z.object({

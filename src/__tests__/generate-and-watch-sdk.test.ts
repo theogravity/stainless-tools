@@ -100,7 +100,7 @@ describe("generateAndWatchSDK", () => {
     mockGit.revparse.mockResolvedValue(undefined);
     mockGit.getRemotes.mockResolvedValue([{ name: "origin", refs: { fetch: "git@ssh.github.com:org/repo.git" } }]);
     mockGit.branch.mockResolvedValue({
-      all: ["main"]
+      all: ["main"],
     });
 
     // Setup mock filesystem
