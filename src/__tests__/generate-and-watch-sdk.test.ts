@@ -1,7 +1,7 @@
 import { watch } from "chokidar";
 import mock from "mock-fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { generateAndWatchSDK } from "../lib";
+import { generateAndWatchSDK } from "../generate-and-watch-sdk";
 
 // Mock chokidar
 vi.mock("chokidar", () => ({
@@ -100,7 +100,7 @@ describe("generateAndWatchSDK", () => {
     mockGit.revparse.mockResolvedValue(undefined);
     mockGit.getRemotes.mockResolvedValue([{ name: "origin", refs: { fetch: "git@ssh.github.com:org/repo.git" } }]);
     mockGit.branch.mockResolvedValue({
-      all: ["main"]
+      all: ["main"],
     });
 
     // Setup mock filesystem

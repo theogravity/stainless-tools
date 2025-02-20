@@ -31,9 +31,29 @@ interface PublishOptions {
 }
 
 /**
- * StainlessApi client for interacting with the Stainless API service.
- * This class provides methods to publish OpenAPI specifications and configurations
- * to the Stainless platform.
+ * Client for interacting with the Stainless API.
+ *
+ * The StainlessApi class provides methods for:
+ * - Publishing OpenAPI specifications
+ * - Publishing Stainless configuration files
+ * - Managing SDK generation settings
+ * - Handling API authentication
+ * - Error handling and retries
+ *
+ * It requires a Stainless API key for authentication, which can be
+ * provided via environment variable STAINLESS_API_KEY.
+ *
+ * Example usage:
+ * ```typescript
+ * const api = new StainlessApi();
+ *
+ * await api.publishSpecs({
+ *   openApiFile: './openapi.yaml',
+ *   stainlessConfigFile: './stainless.config.yaml',
+ *   projectName: 'my-project',
+ *   branch: 'main'
+ * });
+ * ```
  */
 export class StainlessApi {
   private apiKey: string;
@@ -129,7 +149,9 @@ export class StainlessApi {
         throw new StainlessError(errorMessage);
       }
 
-      console.info("\nSuccessfully published specifications to Stainless. This will not generate a new SDK if there are no actual changes.");
+      console.info(
+        "\nSuccessfully published specifications to Stainless. This will not generate a new SDK if there are no actual changes.",
+      );
     } catch (err: unknown) {
       if (err instanceof StainlessError) {
         throw err;

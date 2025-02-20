@@ -3,12 +3,12 @@ import type * as path from "node:path";
 import mock from "mock-fs";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadConfig } from "../../../config";
-import { generateAndWatchSDK } from "../../../lib";
+import { generateAndWatchSDK } from "../../../generate-and-watch-sdk";
 import { createGenerateCommand, generateAction } from "../generate";
 
 // Mock dependencies
 vi.mock("../../../config");
-vi.mock("../../../lib");
+vi.mock("../../../generate-and-watch-sdk");
 
 // Create a mock process using EventEmitter
 class MockProcess extends EventEmitter {
@@ -249,12 +249,7 @@ describe("generate command", () => {
     });
 
     expect(generateAndWatchSDK).toHaveBeenCalledWith({
-      sdkName: "test-sdk",
-      sdkRepo: defaultMockConfig.stainlessSdkRepos["test-sdk"].staging,
-      branch: defaultMockConfig.defaults.branch,
-      openApiFile: "/mock/test/dir/specs/openapi.json",
-      stainlessConfigFile: "/mock/test/dir/stainless-tools.config.json",
-      targetDir: "/mock/test/dir/sdks/test-sdk",
+      branch: "main",
       env: "staging",
       lifecycle: {
         "test-sdk": {
@@ -262,11 +257,23 @@ describe("generate command", () => {
           postUpdate: "npm run build",
         },
       },
-      spinner: expect.any(Object),
+      openApiFile: "/mock/test/dir/specs/openapi.json",
+      sdkName: "test-sdk",
+      sdkRepo: defaultMockConfig.stainlessSdkRepos["test-sdk"].staging,
+      spinner: expect.objectContaining({
+        fail: expect.any(Function),
+        start: expect.any(Function),
+        stop: expect.any(Function),
+        succeed: expect.any(Function),
+        text: "Listening for changes...",
+      }),
       stainlessApiOptions: {
-        projectName: "test-project",
         guessConfig: false,
+        projectName: "test-project",
       },
+      stainlessConfigFile: "/mock/test/dir/stainless-tools.config.json",
+      targetDir: "/mock/test/dir/sdks/test-sdk",
+      projectName: "test-project",
     });
     expect(exitCode).toBe(0);
   });
@@ -282,18 +289,26 @@ describe("generate command", () => {
     });
 
     expect(generateAndWatchSDK).toHaveBeenCalledWith({
-      sdkName: "other-sdk",
-      sdkRepo: mockConfigWithoutDefaults.stainlessSdkRepos["other-sdk"].staging,
       branch: "custom-branch",
-      targetDir: "/mock/test/dir/custom-dir",
-      openApiFile: "/mock/test/dir/custom-openapi.json",
       env: "staging",
       lifecycle: undefined,
-      spinner: expect.any(Object),
+      openApiFile: "/mock/test/dir/custom-openapi.json",
+      sdkName: "other-sdk",
+      sdkRepo: mockConfigWithoutDefaults.stainlessSdkRepos["other-sdk"].staging,
+      spinner: expect.objectContaining({
+        fail: expect.any(Function),
+        start: expect.any(Function),
+        stop: expect.any(Function),
+        succeed: expect.any(Function),
+        text: "Listening for changes...",
+      }),
       stainlessApiOptions: {
-        projectName: "custom-project",
         guessConfig: false,
+        projectName: "custom-project",
       },
+      stainlessConfigFile: undefined,
+      targetDir: "/mock/test/dir/custom-dir",
+      projectName: "custom-project",
     });
     expect(exitCode).toBe(0);
   });
@@ -307,18 +322,26 @@ describe("generate command", () => {
     });
 
     expect(generateAndWatchSDK).toHaveBeenCalledWith({
-      sdkName: "test-sdk",
-      sdkRepo: mockConfigWithPartialDefaults.stainlessSdkRepos["test-sdk"].staging,
-      branch: mockConfigWithPartialDefaults.defaults.branch,
-      openApiFile: "/mock/test/dir/specs/openapi.json",
-      targetDir: "/mock/test/dir/sdks/test-sdk",
+      branch: "main",
       env: "staging",
       lifecycle: undefined,
-      spinner: expect.any(Object),
+      openApiFile: "/mock/test/dir/specs/openapi.json",
+      sdkName: "test-sdk",
+      sdkRepo: mockConfigWithPartialDefaults.stainlessSdkRepos["test-sdk"].staging,
+      spinner: expect.objectContaining({
+        fail: expect.any(Function),
+        start: expect.any(Function),
+        stop: expect.any(Function),
+        succeed: expect.any(Function),
+        text: "Listening for changes...",
+      }),
       stainlessApiOptions: {
-        projectName: "test-project",
         guessConfig: false,
+        projectName: "test-project",
       },
+      stainlessConfigFile: undefined,
+      targetDir: "/mock/test/dir/sdks/test-sdk",
+      projectName: "test-project",
     });
     expect(exitCode).toBe(0);
   });

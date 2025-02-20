@@ -1,17 +1,17 @@
+import * as crypto from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import simpleGit from "simple-git";
 import { StainlessError } from "../StainlessError.js";
 import { type StainlessConfig, loadConfig } from "../config.js";
-import type { SdkCommandOptions } from "./types.js";
-import * as crypto from "node:crypto";
-import simpleGit from "simple-git";
 import { getTargetDir } from "../utils.js";
+import type { SdkCommandOptions } from "./types.js";
 
 /**
  * Generates a random branch name for the CLI
  */
 function generateRandomBranchName(): string {
-  return `cli/${crypto.randomBytes(4).toString('hex')}`;
+  return `cli/${crypto.randomBytes(4).toString("hex")}`;
 }
 
 /**
@@ -77,7 +77,7 @@ export async function validateAndProcessOptions(
   // 4. Current branch in target directory if it exists
   // 5. Generate a new cli/ branch
   let branch = options.branch || process.env.STAINLESS_SDK_BRANCH || config.defaults?.branch;
-  
+
   if (!branch) {
     const currentBranch = await getCurrentBranch(targetDir);
     branch = currentBranch || generateRandomBranchName();

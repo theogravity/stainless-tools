@@ -1,42 +1,133 @@
 import type { Ora } from "ora";
+import { FileWatcher } from "./FileWatcher.js";
+import { LifecycleManager } from "./LifecycleManager.js";
+import { RepoManager } from "./RepoManager.js";
 import { StainlessApi } from "./StainlessApi.js";
 import { StainlessError } from "./StainlessError.js";
 import { isValidGitUrl } from "./utils.js";
-import { FileWatcher } from "./FileWatcher.js";
-import { RepoManager } from "./RepoManager.js";
 
-interface StainlessToolsOptions {
+/**
+ * Options for configuring a StainlessTools instance.
+ */
+export interface StainlessToolsOptions {
+  /**
+   * Git repository URL for the SDK.
+   */
   sdkRepo: string;
+  /**
+   * Git branch to use for the SDK.
+   */
   branch: string;
+  /**
+   * Local directory where the SDK repository will be cloned/managed.
+   */
   targetDir: string;
-  openApiFile?: string;
+  /**
+   * Path to the OpenAPI specification file.
+   * Required for all operations.
+   */
+  openApiFile: string;
+  /**
+   * Path to the Stainless configuration file.
+   */
   stainlessConfigFile?: string;
-  spinner?: Ora;
-  stainlessApiOptions?: {
-    apiKey?: string;
-    baseUrl?: string;
-    projectName?: string;
-    guessConfig?: boolean;
-  };
+  /**
+   * Name of the project in Stainless.
+   */
+  projectName: string;
+  /**
+   * Name of the SDK (e.g., 'typescript', 'python').
+   */
   sdkName?: string;
-  env?: string; // The environment (e.g. "staging" or "prod")
+  /**
+   * Current environment (staging/prod).
+   */
+  env?: string;
+  /**
+   * Whether to use AI to guess the configuration.
+   */
+  guessConfig?: boolean;
+  /**
+   * Lifecycle manager for executing hooks at various stages.
+   */
+  lifecycleManager: LifecycleManager;
+  /**
+   * Progress spinner for CLI output.
+   */
+  spinner?: Ora;
+  /**
+   * Options for configuring the Stainless API client.
+   */
+  stainlessApiOptions?: {
+    /**
+     * Stainless API key for authentication.
+     */
+    apiKey?: string;
+    /**
+     * Base URL for the Stainless API.
+     */
+    baseUrl?: string;
+    /**
+     * Project name in Stainless.
+     */
+    projectName?: string;
+  };
+  /**
+   * Lifecycle hooks configuration.
+   */
   lifecycle?: {
     [key: string]: {
+      /**
+       * Command to run after cloning the repository.
+       */
       postClone?: string;
+      /**
+       * Command to run after updating the repository.
+       */
       postUpdate?: string;
     };
   };
 }
 
 /**
- * StainlessTools manages SDK repositories for the Stainless SDK service.
- * It handles cloning, updating, and synchronizing repositories, as well as managing OpenAPI
- * and configuration files.
+ * Main class for managing Stainless SDK generation and updates.
+ *
+ * StainlessTools orchestrates the entire SDK management process by:
+ * - Coordinating between different components (API, repo manager, file watcher)
+ * - Managing SDK repository cloning and updates
+ * - Publishing OpenAPI and configuration files
+ * - Monitoring files for changes
+ * - Executing lifecycle hooks at appropriate times
+ * - Providing status updates and error handling
+ *
+ * It serves as the high-level interface for the Stainless Tools CLI
+ * and can also be used programmatically.
+ *
+ * Example usage:
+ * ```typescript
+ * const tools = new StainlessTools({
+ *   sdkRepo: 'git@github.com:org/sdk.git',
+ *   branch: 'main',
+ *   targetDir: './sdks/typescript',
+ *   openApiFile: './openapi.yaml',
+ *   stainlessConfigFile: './stainless.config.yaml',
+ *   projectName: 'my-project',
+ *   sdkName: 'typescript',
+ *   env: 'staging',
+ *   guessConfig: false,
+ *   lifecycleManager: new LifecycleManager()
+ * });
+ *
+ * // Initialize and start monitoring
+ * await tools.init();
+ * await tools.watch();
+ * ```
  */
 export class StainlessTools {
   private repoManager: RepoManager;
   private fileWatcher: FileWatcher;
   private stainlessApi: StainlessApi;
+  private lifecycleManager: LifecycleManager;
 
   /**
    * Creates a new instance of StainlessTools.
@@ -46,14 +137,15 @@ export class StainlessTools {
   constructor(private options: StainlessToolsOptions) {
     this.validateInputs();
     this.stainlessApi = new StainlessApi(options.stainlessApiOptions);
-    
+    this.lifecycleManager = new LifecycleManager(options.lifecycle);
+
     this.repoManager = new RepoManager({
       sdkRepo: options.sdkRepo,
       branch: options.branch,
       targetDir: options.targetDir,
       sdkName: options.sdkName,
       env: options.env,
-      lifecycle: options.lifecycle,
+      lifecycleManager: this.lifecycleManager,
     });
 
     this.fileWatcher = new FileWatcher({
@@ -64,8 +156,10 @@ export class StainlessTools {
       stainlessApi: this.stainlessApi,
       stainlessApiOptions: {
         projectName: options.stainlessApiOptions?.projectName,
-        guessConfig: options.stainlessApiOptions?.guessConfig,
+        guessConfig: options.guessConfig,
       },
+      lifecycleManager: this.lifecycleManager,
+      sdkName: options.sdkName,
     });
   }
 
@@ -84,6 +178,9 @@ export class StainlessTools {
     if (!this.options.targetDir) {
       throw new StainlessError("Target directory is required");
     }
+    if (!this.options.openApiFile) {
+      throw new StainlessError("OpenAPI specification file is required");
+    }
 
     if (!isValidGitUrl(this.options.sdkRepo)) {
       throw new StainlessError(`Invalid SDK repository URL: ${this.options.sdkRepo}`);
@@ -97,16 +194,8 @@ export class StainlessTools {
    */
   async clone(): Promise<void> {
     try {
-      // Validate OpenAPI file requirement first
-      if (this.options.stainlessConfigFile && !this.options.openApiFile) {
-        throw new StainlessError("OpenAPI specification file is required");
-      }
-
-      // Publish files if provided
-      if (this.options.openApiFile || this.options.stainlessConfigFile) {
-        await this.fileWatcher.publishFiles();
-      }
-
+      // Always publish files since openApiFile is required
+      await this.fileWatcher.publishFiles();
       await this.repoManager.initializeRepo();
 
       // Start watching for file changes after successful clone

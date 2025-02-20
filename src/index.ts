@@ -6,7 +6,7 @@ config({
   ignore: ["MISSING_ENV_FILE"],
 });
 
-export { generateAndWatchSDK } from "./lib.js";
+export { generateAndWatchSDK } from "./generate-and-watch-sdk.js";
 export { loadConfig } from "./config.js";
 export type { StainlessConfig } from "./config.js";
 export * from "./StainlessTools.js";
